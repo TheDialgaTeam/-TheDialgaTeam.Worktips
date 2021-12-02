@@ -1,0 +1,43 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31912.275
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TheDialgaTeam.Worktips.Explorer.Server", "TheDialgaTeam.Worktips.Explorer\Server\TheDialgaTeam.Worktips.Explorer.Server.csproj", "{07353A83-BF79-45CE-84F0-83EC1692D8D9}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TheDialgaTeam.Worktips.Explorer.Client", "TheDialgaTeam.Worktips.Explorer\Client\TheDialgaTeam.Worktips.Explorer.Client.csproj", "{AF11AC1B-998C-495A-AB12-99548DF0075B}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TheDialgaTeam.Worktips.Explorer.Shared", "TheDialgaTeam.Worktips.Explorer\Shared\TheDialgaTeam.Worktips.Explorer.Shared.csproj", "{B15D10E5-7156-423E-BD2F-D4C45ACA7097}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TheDialgaTeam.Cryptonote.Rpc", "..\TheDialgaTeam.Cryptonote.Rpc\src\TheDialgaTeam.Cryptonote.Rpc.csproj", "{10694269-BDAC-4D5B-8F33-1BFB5D819A52}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{07353A83-BF79-45CE-84F0-83EC1692D8D9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{07353A83-BF79-45CE-84F0-83EC1692D8D9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{07353A83-BF79-45CE-84F0-83EC1692D8D9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{07353A83-BF79-45CE-84F0-83EC1692D8D9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AF11AC1B-998C-495A-AB12-99548DF0075B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AF11AC1B-998C-495A-AB12-99548DF0075B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AF11AC1B-998C-495A-AB12-99548DF0075B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AF11AC1B-998C-495A-AB12-99548DF0075B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B15D10E5-7156-423E-BD2F-D4C45ACA7097}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B15D10E5-7156-423E-BD2F-D4C45ACA7097}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B15D10E5-7156-423E-BD2F-D4C45ACA7097}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B15D10E5-7156-423E-BD2F-D4C45ACA7097}.Release|Any CPU.Build.0 = Release|Any CPU
+		{10694269-BDAC-4D5B-8F33-1BFB5D819A52}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{10694269-BDAC-4D5B-8F33-1BFB5D819A52}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{10694269-BDAC-4D5B-8F33-1BFB5D819A52}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{10694269-BDAC-4D5B-8F33-1BFB5D819A52}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {7ACC42FC-5DD9-490A-A16B-2990A0CA9148}
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,107 @@
+﻿syntax = "proto3";
+
+service Daemon {
+  rpc GetCoinInfo(NoParametersRequest) returns (GetCoinInfoResponse);
+  rpc GetCurrentDaemonInfo(NoParametersRequest) returns (GetCurrentDaemonInfoResponse);
+  rpc GetChartData(NoParametersRequest) returns (GetChartDataResponse);
+  rpc GetTransactionPool(NoParametersRequest) returns (GetTransactionPoolResponse);
+  rpc GetRecentBlocks(NoParametersRequest) returns (GetRecentBlocksResponse);
+  rpc GetBlockInfo(GetBlockInfoRequest) returns (GetBlockInfoResponse);
+}
+
+message NoParametersRequest {}
+
+message GetCoinInfoResponse {
+  bool success = 1;
+
+  string ticker = 2;
+  uint64 unit = 3;
+}
+
+message GetCurrentDaemonInfoResponse {
+  bool success = 1;
+
+  uint64 height = 2;
+  uint64 difficulty = 3;
+  double networkHashRate = 4;
+  uint64 blockReward = 5;
+  uint64 totalTransactions = 6;
+  uint64 circulatingSupply = 7;
+  uint64 totalSupply = 8;
+  double currentEmission = 9;
+}
+
+message GetChartDataResponse {
+  bool success = 1;
+
+  repeated ChartData chartData = 2;
+
+  message ChartData {
+    uint64 timestamp = 1;
+    uint64 difficulty = 2;
+    uint64 blockSize = 3;
+    uint64 txCount = 4;
+  }
+}
+
+message GetTransactionPoolResponse {
+  bool success = 1;
+
+  repeated Transaction transactions = 2; 
+
+  message Transaction {
+      uint64 age = 1;
+      uint64 fee = 2;
+      uint64 size = 3;
+      string hash = 4;
+  }
+}
+
+message GetRecentBlocksResponse {
+  bool success = 1;
+
+  repeated Block blocks = 2;
+
+  message Block {
+      uint64 height = 1;
+      uint64 size = 2;
+      string hash = 3;
+      uint64 difficulty = 4;
+      uint64 txCount = 5;
+      uint64 timestamp = 6;
+  }
+}
+
+message GetBlockInfoRequest {
+    oneof BlockType {
+        uint64 height = 1;
+        string hash = 2;
+    }
+}
+
+message GetBlockInfoResponse {
+  bool success = 1;
+
+  string hash = 16;
+  uint64 height = 2;
+  uint64 confirmation = 3;
+  uint64 timestamp = 4;
+  string version = 5;
+  uint64 difficulty = 6;
+  uint32 nonce = 7;
+  uint64 size = 8;
+  uint64 minerReward = 9;
+  uint64 reward = 10;
+  double txSize = 11;
+  uint64 txFee = 12;
+  string previousBlockHash = 13;
+  string serviceNodeWinner = 14;
+  repeated TransactionInfo transactionInfo = 15;
+
+  message TransactionInfo {
+    string hash = 1;
+    uint64 fee = 2;
+    uint64 totalAmount = 3;
+    double size = 4;
+  }
+}

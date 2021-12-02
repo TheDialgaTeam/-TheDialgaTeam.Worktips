@@ -1,0 +1,216 @@
+﻿@page "/"
+
+@implements IDisposable
+
+@inject Daemon.DaemonClient daemonClient
+@inject IJSRuntime jsRuntime
+@inject IPageProgressService pageProgressService
+
+<PageTitle>Worktips Block Explorer</PageTitle>
+
+<Heading Size="HeadingSize.Is3" TextColor="TextColor.Body">Worktips Block Explorer</Heading>
+
+<Row Gutter="(16, 32)">
+	<Column ColumnSize="ColumnSize.Is5.OnDesktop">
+		<Card Background="Background.Primary">
+			<CardHeader TextColor="TextColor.Dark" TextWeight="TextWeight.Bold">Network Stats</CardHeader>
+			<CardBody Padding="Padding.Is0.FromTop">
+				<Table Narrow="true" Responsive="true" Margin="Margin.Is0">
+					<TableBody>
+						<TableRow>
+							<TableRowHeader TextColor="TextColor.Dark">Height</TableRowHeader>
+							<TableRowCell TextColor="TextColor.Dark">@currentDaemonStatistics.Height.ToString("N0")</TableRowCell>
+						</TableRow>
+
+						<TableRow>
+							<TableRowHeader TextColor="TextColor.Dark">Difficulty</TableRowHeader>
+							<TableRowCell TextColor="TextColor.Dark">@currentDaemonStatistics.Difficulty.ToString("N0")</TableRowCell>
+						</TableRow>
+
+						<TableRow>
+							<TableRowHeader TextColor="TextColor.Dark">Network Hash Rate</TableRowHeader>
+							<TableRowCell TextColor="TextColor.Dark">@DaemonUtility.FormatHashrate(currentDaemonStatistics.NetworkHashRate)</TableRowCell>
+						</TableRow>
+
+						<TableRow>
+							<TableRowHeader TextColor="TextColor.Dark">Block Reward</TableRowHeader>
+							<TableRowCell TextColor="TextColor.Dark">@DaemonUtility.FormatAtomicUnit(currentDaemonStatistics.BlockReward, coinInfoResponse.Unit) @coinInfoResponse.Ticker</TableRowCell>
+						</TableRow>
+
+						<TableRow>
+							<TableRowHeader TextColor="TextColor.Dark">Total Transactions</TableRowHeader>
+							<TableRowCell TextColor="TextColor.Dark">@currentDaemonStatistics.TotalTransactions.ToString("N0")</TableRowCell>
+						</TableRow>
+
+						<TableRow>
+							<TableRowHeader TextColor="TextColor.Dark">Circulating Supply</TableRowHeader>
+							<TableRowCell TextColor="TextColor.Dark">@DaemonUtility.FormatAtomicUnit(currentDaemonStatistics.CirculatingSupply, coinInfoResponse.Unit) @coinInfoResponse.Ticker</TableRowCell>
+						</TableRow>
+
+						<TableRow>
+							<TableRowHeader TextColor="TextColor.Dark">Total Supply</TableRowHeader>
+							<TableRowCell TextColor="TextColor.Dark">@DaemonUtility.FormatAtomicUnit(currentDaemonStatistics.TotalSupply, coinInfoResponse.Unit) @coinInfoResponse.Ticker</TableRowCell>
+						</TableRow>
+
+						<TableRow>
+							<TableRowHeader TextColor="TextColor.Dark">Current Emission</TableRowHeader>
+							<TableRowCell TextColor="TextColor.Dark">@currentDaemonStatistics.CurrentEmission.ToString("P2")</TableRowCell>
+						</TableRow>
+					</TableBody>
+				</Table>
+			</CardBody>
+		</Card>
+	</Column>
+
+	<Column ColumnSize="ColumnSize.Is7.OnDesktop">
+		<Card Background="Background.Primary">
+			<CardHeader TextColor="TextColor.Dark" TextWeight="TextWeight.Bold">Network Chart</CardHeader>
+			<CardBody>
+				<Div ElementId="blockchainChart"></Div>
+			</CardBody>
+		</Card>
+	</Column>
+</Row>
+
+<Row Gutter="(16, 32)">
+	<Column>
+		<Card Background="Background.Primary">
+			<CardHeader TextColor="TextColor.Dark" TextWeight="TextWeight.Bold">Transaction Pool <Badge Color="Color.Success">@transactionPoolResponse.Transactions.Count</Badge></CardHeader>
+			<CardBody>
+				<Table Narrow="true" Responsive="true">
+					<TableHeader>
+						<TableRow>
+							<TableRowHeader TextColor="TextColor.Dark">AGE [DD:HH:MM:SS]</TableRowHeader>
+							<TableRowHeader TextColor="TextColor.Dark">FEE</TableRowHeader>
+							<TableRowHeader TextColor="TextColor.Dark">SIZE</TableRowHeader>
+							<TableRowHeader TextColor="TextColor.Dark">HASH</TableRowHeader>
+						</TableRow>
+					</TableHeader>
+					<TableBody>
+						@if (!transactionPoolResponse.Success || transactionPoolResponse.Transactions.Count == 0)
+						{
+							<TableRow>
+								<TableRowCell ColumnSpan="4" TextColor="TextColor.Dark">There are no transactions in the transaction pool.</TableRowCell>
+							</TableRow>
+						}
+						else
+						{
+							@foreach (var transaction in transactionPoolResponse.Transactions)
+							{
+								<TableRow>
+									<TableRowCell TextColor="TextColor.Dark">@TimeSpan.FromSeconds(transaction.Age).ToString("d\\:hh\\:mm\\:ss")</TableRowCell>
+									<TableRowCell TextColor="TextColor.Dark">@DaemonUtility.FormatAtomicUnit(transaction.Fee, coinInfoResponse.Unit)</TableRowCell>
+									<TableRowCell TextColor="TextColor.Dark">@transaction.Size.ToString("N0")</TableRowCell>
+									<TableRowCell TextColor="TextColor.Dark">@transaction.Hash</TableRowCell>
+								</TableRow>
+							}
+						}
+					</TableBody>
+				</Table>
+			</CardBody>
+		</Card>
+	</Column>
+</Row>
+
+<Row Gutter="(16, 32)">
+	<Column>
+		<Card Background="Background.Primary">
+			<CardHeader TextColor="TextColor.Dark" TextWeight="TextWeight.Bold">Recent Blocks</CardHeader>
+			<CardBody>
+				<Table Narrow="true" Responsive="true">
+					<TableHeader>
+						<TableRow>
+							<TableRowHeader TextColor="TextColor.Dark">HEIGHT</TableRowHeader>
+							<TableRowHeader TextColor="TextColor.Dark">SIZE</TableRowHeader>
+							<TableRowHeader TextColor="TextColor.Dark">HASH</TableRowHeader>
+							<TableRowHeader TextColor="TextColor.Dark">DIFF</TableRowHeader>
+							<TableRowHeader TextColor="TextColor.Dark">TX COUNT</TableRowHeader>
+							<TableRowHeader TextColor="TextColor.Dark">TIME</TableRowHeader>
+						</TableRow>
+					</TableHeader>
+					<TableBody>
+						@if (!recentBlocksResponse.Success || recentBlocksResponse.Blocks.Count == 0)
+						{
+							<TableRow>
+								<TableRowCell ColumnSpan="6" TextColor="TextColor.Dark">There are no blocks in the blockchain.</TableRowCell>
+							</TableRow>
+						}
+						else
+						{
+							@foreach (var block in recentBlocksResponse.Blocks)
+							{
+								<TableRow>
+									<TableRowCell TextColor="TextColor.Dark">@block.Height.ToString("N0")</TableRowCell>
+									<TableRowCell TextColor="TextColor.Dark">@block.Size.ToString("N0")</TableRowCell>
+									<TableRowCell TextColor="TextColor.Dark"><Anchor To="@($"block/{block.Hash}")" TextColor="TextColor.Primary">@block.Hash</Anchor></TableRowCell>
+									<TableRowCell TextColor="TextColor.Dark">@block.Difficulty.ToString("N0")</TableRowCell>
+									<TableRowCell TextColor="TextColor.Dark">@block.TxCount.ToString("N0")</TableRowCell>
+									<TableRowCell TextColor="TextColor.Dark">@DateTimeOffset.FromUnixTimeSeconds(Convert.ToInt64(block.Timestamp)).LocalDateTime</TableRowCell>
+								</TableRow>
+							}
+						}
+					</TableBody>
+				</Table>
+			</CardBody>
+		</Card>
+	</Column>
+</Row>
+
+@code
+{
+	private Timer? globalTimer;
+
+	private GetCoinInfoResponse coinInfoResponse = new() { Success = false };
+	private GetCurrentDaemonInfoResponse currentDaemonStatistics = new() { Success = false };
+	private GetTransactionPoolResponse transactionPoolResponse = new() { Success = false };
+	private GetRecentBlocksResponse recentBlocksResponse = new() { Success = false };
+
+	protected override void OnInitialized()
+	{
+		globalTimer = new Timer(async _ =>
+		{
+			await pageProgressService.Go(null, options => options.Color = Color.Success);
+
+			coinInfoResponse = await daemonClient.GetCoinInfoAsync(new NoParametersRequest());
+
+			var task = Task.Run(async () =>
+			{
+				currentDaemonStatistics = await daemonClient.GetCurrentDaemonInfoAsync(new NoParametersRequest());
+				await InvokeAsync(StateHasChanged);
+			});
+
+			var task2 = Task.Run(async () =>
+			{
+				var response = await daemonClient.GetChartDataAsync(new NoParametersRequest());
+				var script = new List<string>();
+
+				foreach (var chartData in response.ChartData)
+				{
+					script.Add($"{{\"timestamp\": {chartData.Timestamp}, \"difficulty\": {chartData.Difficulty}, \"size\": {chartData.BlockSize}, \"tx\": {chartData.TxCount}}}");
+				}
+
+				await jsRuntime.InvokeVoidAsync("window.updateBlockchainChart", $"[{string.Join(",", script)}]");
+			});
+
+			var task3 = Task.Run(async () =>
+			{
+				transactionPoolResponse = await daemonClient.GetTransactionPoolAsync(new NoParametersRequest());
+				await InvokeAsync(StateHasChanged);
+			});
+
+			var task4 = Task.Run(async () =>
+			{
+				recentBlocksResponse = await daemonClient.GetRecentBlocksAsync(new NoParametersRequest());
+				await InvokeAsync(StateHasChanged);
+			});
+
+			await Task.WhenAll(task, task2, task3, task4);
+			await pageProgressService.Go(-1);
+		}, null, TimeSpan.FromSeconds(0), TimeSpan.FromSeconds(10));
+	}
+
+	public void Dispose()
+	{
+		globalTimer?.Dispose();
+	}
+}

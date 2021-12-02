@@ -1,0 +1,35 @@
+﻿@inherits LayoutComponentBase
+
+<Layout>
+	<LayoutHeader>
+		<Container>
+			<Bar Breakpoint="Breakpoint.Desktop" CollapseMode="BarCollapseMode.Hide" Background="Background.Primary">
+				<BarBrand>
+					<Figure Size="FigureSize.Is32x32" Margin="Margin.Is3.FromLeft.Is0.FromBottom">
+						<FigureImage Source="images/worktips-logo.png" AlternateText="Worktips Logo" />
+					</Figure>
+				</BarBrand>
+				<BarToggler/>
+				<BarMenu>
+					<BarStart>
+						<BarItem Margin="Margin.Is3.FromLeft">
+							<BarLink To="/"><Icon Name="@("fas fa-dice-d6")"/> Block Explorer</BarLink>
+						</BarItem>
+					</BarStart>
+				</BarMenu>
+			</Bar>
+		</Container>
+	</LayoutHeader>
+	<LayoutContent Padding="Padding.Is3.FromTop.Is3.FromBottom">
+		<Container>
+			@Body
+		</Container>
+	</LayoutContent>
+	<LayoutFooter>
+		<Container>
+			<Paragraph TextColor="TextColor.Body">Copyright © 2021 Yong Jian Ming</Paragraph>
+			<Paragraph TextColor="TextColor.Body">This site is still in development. Expect some bugs and issues while browsing. Support the developer by giving a small tip :)</Paragraph>
+			<Paragraph TextColor="TextColor.Body">Donate WTIP: WtmaL4cVq7fVzT1VAtYpNUShZcRvjn1PubPVeKMMT7BM7hSFNA5aCSo6hiaGdzvB7GZfntpE4i5xZfAcQCdYhg3L9ynyQtgQEx</Paragraph>
+		</Container>
+	</LayoutFooter>
+</Layout>
