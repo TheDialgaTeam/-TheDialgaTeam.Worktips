@@ -54,7 +54,7 @@
 							<TableRowHeader>Nonce</TableRowHeader>
 							<TableRowCell>@blockInfoResponse.Nonce.ToString("N0")</TableRowCell>
 							<TableRowHeader>Prev. Block</TableRowHeader>
-							<TableRowCell><a href="@($"block/{blockInfoResponse.PreviousBlockHash}")">@blockInfoResponse.PreviousBlockHash</a></TableRowCell>
+							<TableRowCell><Anchor To="@($"block/{blockInfoResponse.PreviousBlockHash}")" TextColor="TextColor.Primary">@blockInfoResponse.PreviousBlockHash</Anchor></TableRowCell>
 						</TableRow>
 						
 						<TableRow>

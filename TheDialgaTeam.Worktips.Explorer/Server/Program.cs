@@ -2,6 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
+using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using TheDialgaTeam.Core.Logger.Extensions.Logging;
@@ -20,8 +21,9 @@ public static class Program
     /// <summary>
     /// FIXME: This is required for EF Core 6.0 as it is not compatible with trimming.
     /// </summary>
+    [UsedImplicitly]
     [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
-    private static Type _dateOnly = typeof(DateOnly);
+    private static readonly Type DateOnly = typeof(DateOnly);
 
     public static void Main(string[] args)
     {
@@ -64,7 +66,7 @@ public static class Program
                 }));
                 serviceCollection.AddSingleton(_ =>
                 {
-                    var commandService = new CommandService(new CommandServiceConfig { CaseSensitiveCommands = false, IgnoreExtraArgs = true });
+                    var commandService = new CommandService(new CommandServiceConfig { CaseSensitiveCommands = false, IgnoreExtraArgs = true, ThrowOnError = true });
                     commandService.AddTypeReader<IEmote>(new EmoteTypeReader());
                     return commandService;
                 });
@@ -74,6 +76,7 @@ public static class Program
                 serviceCollection.AddSingleton(_ => new DaemonRpcClient(hostBuilderContext.Configuration["Blockchain:Rpc:Daemon:Host"], int.Parse(hostBuilderContext.Configuration["Blockchain:Rpc:Daemon:Port"])));
                 serviceCollection.AddSingleton(_ => new WalletRpcClient(hostBuilderContext.Configuration["Blockchain:Rpc:Wallet:Host"], int.Parse(hostBuilderContext.Configuration["Blockchain:Rpc:Wallet:Port"])));
                 serviceCollection.AddHostedService<DaemonHostedService>();
+                serviceCollection.AddHostedService<WalletHostedService>();
             })
             .UseSerilog((hostBuilderContext, loggerConfiguration) =>
             {

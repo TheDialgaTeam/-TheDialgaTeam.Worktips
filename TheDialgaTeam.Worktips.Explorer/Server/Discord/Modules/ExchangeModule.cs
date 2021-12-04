@@ -41,7 +41,7 @@ public class ExchangeModule : AbstractModule
                 .WithTitle($":moneybag: TradeOgre LTC-{_blockchainOptions.CoinTicker} Price")
                 .WithUrl($"https://tradeogre.com/exchange/LTC-{_blockchainOptions.CoinTicker}")
                 .AddField("Current Price", $"{ticker.Price} LTC", true)
-                .AddField("24h Chg.", $"{ticker.Price - ticker.InitialPrice} LTC ({priceChangeSign}{(ticker.Price - ticker.InitialPrice) / ticker.InitialPrice * 100:F2}%)", true)
+                .AddField("24h Chg.", $"{priceChange} LTC ({priceChangeSign}{priceChange / ticker.InitialPrice:P2})", true)
                 .AddField("Volume", $"{ticker.Volume} LTC")
                 .AddField("24h Low", $"{ticker.Low} LTC", true)
                 .AddField("24h High", $"{ticker.High} LTC", true);
@@ -83,7 +83,7 @@ public class ExchangeModule : AbstractModule
                 .WithTitle($":moneybag: TradeOgre BTC-{_blockchainOptions.CoinTicker} Price")
                 .WithUrl($"https://tradeogre.com/exchange/BTC-{_blockchainOptions.CoinTicker}")
                 .AddField("Current Price", $"{ticker.Price} BTC", true)
-                .AddField("24h Chg.", $"{ticker.Price - ticker.InitialPrice} BTC ({priceChangeSign}{(ticker.Price - ticker.InitialPrice) / ticker.InitialPrice * 100:F2}%)", true)
+                .AddField("24h Chg.", $"{priceChange} BTC ({priceChangeSign}{priceChange / ticker.InitialPrice:P2})", true)
                 .AddField("Volume", $"{ticker.Volume} BTC")
                 .AddField("24h Low", $"{ticker.Low} BTC", true)
                 .AddField("24h High", $"{ticker.High} BTC", true);

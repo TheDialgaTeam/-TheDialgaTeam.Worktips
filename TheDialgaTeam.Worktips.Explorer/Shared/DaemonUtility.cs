@@ -2,18 +2,19 @@
 
 public static class DaemonUtility
 {
+    private static readonly string[] Units = { "H/s", "KH/s", "MH/s", "GH/s", "TH/s", "PH/s" };
+
     public static string FormatHashrate(double hashrate, int decimalPlaces = 2)
     {
         var i = 0;
-        string[] units = { "H/s", "KH/s", "MH/s", "GH/s", "TH/s", "PH/s" };
-
+        
         while (hashrate >= 1000)
         {
             hashrate /= 1000;
             i++;
         }
 
-        return $"{hashrate.ToString($"N{decimalPlaces}")} {units[i]}";
+        return $"{hashrate.ToString($"N{decimalPlaces}")} {Units[i]}";
     }
 
     public static string FormatAtomicUnit(ulong value, ulong atomicUnit)

@@ -123,17 +123,17 @@ s: Optional seconds, ranging from 0 to 59.
                     break;
 
                 case nameof(IChannel) when !ignoredTypes.Contains(typeof(IChannel)):
-                    stringBuilder.AppendLine($"{nameof(IChannel)} arguments can be #channel, channel id, channel name of any scope.\n");
+                    stringBuilder.AppendLine($"{nameof(IChannel)} arguments can be #channel or channel id or channel name.\n");
                     ignoredTypes.Add(typeof(IChannel));
                     break;
 
                 case nameof(IUser) when !ignoredTypes.Contains(typeof(IUser)):
-                    stringBuilder.AppendLine($"{nameof(IUser)} arguments can be @user, user id, username, nickname of any scope.\n");
+                    stringBuilder.AppendLine($"{nameof(IUser)} arguments can be @user or user id or username or nickname.\n");
                     ignoredTypes.Add(typeof(IUser));
                     break;
 
                 case nameof(IRole) when !ignoredTypes.Contains(typeof(IRole)):
-                    stringBuilder.AppendLine($"{nameof(IRole)} arguments can be @role, role id, role name.\n");
+                    stringBuilder.AppendLine($"{nameof(IRole)} arguments can be @role or role id or role name.\n");
                     ignoredTypes.Add(typeof(IRole));
                     break;
 

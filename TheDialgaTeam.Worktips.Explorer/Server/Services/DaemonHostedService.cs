@@ -24,7 +24,7 @@ public class DaemonHostedService : IHostedService
 
     public Task StartAsync(CancellationToken cancellationToken)
     {
-        _ = Task.Factory.StartNew(async () =>
+        Task.Factory.StartNew(async () =>
         {
             var applicationStopping = _hostApplicationLifetime.ApplicationStopping;
 
@@ -64,10 +64,14 @@ public class DaemonHostedService : IHostedService
                         _loggerTemplate.LogInformation($"{AnsiEscapeCodeConstants.DarkGreenForegroundColor}Synchronized {daemonSyncHistory.BlockCount}/{maxHeight}{AnsiEscapeCodeConstants.Reset}", true);
                     } while (daemonSyncHistory.BlockCount != maxHeight);
                 }
-                catch (Exception exception)
+                catch (Exception exception) when (exception is not OperationCanceledException && exception is not TaskCanceledException)
                 {
                     _loggerTemplate.LogError(exception, "Error:", true);
                     await Task.Delay(1000, applicationStopping);
+                }
+                catch (Exception)
+                {
+                    // ignored
                 }
             }
         }, TaskCreationOptions.LongRunning);

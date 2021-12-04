@@ -67,7 +67,7 @@ public abstract class AbstractModule : ModuleBase<ShardedCommandContext>
     protected async Task<IUserMessage?> ReplyToDirectMessageAsync(string? message = null, bool isTextToSpeech = false, Embed? embed = null, RequestOptions? options = null, AllowedMentions? allowedMentions = null, MessageReference? messageReference = null)
     {
         var messageContext = Context.Message;
-
+        
         if (messageContext.Channel is SocketDMChannel)
         {
             return await ReplyAsync(message, isTextToSpeech, embed, options ?? _requestOptions, allowedMentions, messageReference);

@@ -43,10 +43,10 @@
 <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
 	
 <script type="text/javascript">
-    google.charts.load('current', { 'packages': ['corechart'] });
+	google.charts.load('current', { 'packages': ['corechart'] });
 
 	window.updateBlockchainChart = function (data) {
-		var blockchainChartOptions = {
+		const blockchainChartOptions = {
 			legend: {
 				position: 'bottom'
 			},
@@ -104,25 +104,25 @@
 			colors: ['#f6b26b', '#40c18e', '#8e7cc3', '#00853d', '#212721', '#fac5c3', '#6d9eeb', '#45818e', '#de5f5f']
 		};
 
-		var chartData = [
+		const chartData = [
 			['Block Time', 'Difficulty', 'Block Size', 'Txn Count']
 		];
 
 		data = JSON.parse(data);
 
-		for (var i = 0; i < data.length; i++) {
-			var block = data[i];
+		for (let i = 0; i < data.length; i++) {
+			const block = data[i];
 
 			chartData.push([
-                new Date(block.timestamp * 1000 + ((new Date()).getTimezoneOffset() * 60 * 1000)),
-                parseInt(block.difficulty),
-                parseInt(block.size),
-                parseInt(block.tx)
+				new Date(block.timestamp * 1000 + ((new Date()).getTimezoneOffset() * 60 * 1000)),
+				parseInt(block.difficulty),
+				parseInt(block.size),
+				parseInt(block.tx)
 			]);
 		}
 
-		var blockchainChartData = google.visualization.arrayToDataTable(chartData);
-		var blockchainChart = new google.visualization.AreaChart(document.getElementById('blockchainChart'));
+		const blockchainChartData = google.visualization.arrayToDataTable(chartData);
+		const blockchainChart = new google.visualization.AreaChart(document.getElementById('blockchainChart'));
 		blockchainChart.draw(blockchainChartData, blockchainChartOptions);
 	};
 </script>

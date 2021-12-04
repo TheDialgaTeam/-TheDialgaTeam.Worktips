@@ -232,12 +232,12 @@ public class WalletModule : AbstractModule
 
             await ReplyToDirectMessageAsync(embed: successEmbed.Build());
 
-            for (var i = 0; i < transferResult.TxHashList.Length; i++)
+            for (var i = 0; i < transferResult.TransactionHashList.Length; i++)
             {
                 var txEmbed = new EmbedBuilder()
                     .WithColor(Color.Orange)
-                    .WithTitle($":moneybag: TRANSACTION PAID ({i + 1}/{transferResult.TxHashList.Length})")
-                    .WithDescription($"Amount: {DaemonUtility.FormatAtomicUnit(transferResult.AmountList[i], _blockchainOptions.CoinUnit)} {_blockchainOptions.CoinTicker}\nFee: {DaemonUtility.FormatAtomicUnit(transferResult.FeeList[i], _blockchainOptions.CoinUnit)} {_blockchainOptions.CoinTicker}\nTransaction hash: `{transferResult.TxHashList[i]}`");
+                    .WithTitle($":moneybag: TRANSACTION PAID ({i + 1}/{transferResult.TransactionHashList.Length})")
+                    .WithDescription($"Amount: {DaemonUtility.FormatAtomicUnit(transferResult.AmountList[i], _blockchainOptions.CoinUnit)} {_blockchainOptions.CoinTicker}\nFee: {DaemonUtility.FormatAtomicUnit(transferResult.FeeList[i], _blockchainOptions.CoinUnit)} {_blockchainOptions.CoinTicker}\nTransaction hash: `{transferResult.TransactionHashList[i]}`");
 
                 await ReplyToDirectMessageAsync(embed: txEmbed.Build());
             }
@@ -342,7 +342,7 @@ public class WalletModule : AbstractModule
                     var notificationEmbed = new EmbedBuilder()
                         .WithColor(Color.Green)
                         .WithTitle(":moneybag: INCOMING TIP")
-                        .WithDescription($":moneybag: You got a tip of {DaemonUtility.FormatAtomicUnit(atomicAmountToTip, _blockchainOptions.CoinUnit)} {_blockchainOptions.CoinTicker} from {Context.User}\n:hash: Transaction hash: {string.Join(", ", transferResult.TxHashList.Select(a => $"`{a}`"))}");
+                        .WithDescription($":moneybag: You got a tip of {DaemonUtility.FormatAtomicUnit(atomicAmountToTip, _blockchainOptions.CoinUnit)} {_blockchainOptions.CoinTicker} from {Context.User}\n:hash: Transaction hash: {string.Join(", ", transferResult.TransactionHashList.Select(a => $"`{a}`"))}");
 
                     await dmChannel.SendMessageAsync(embed: notificationEmbed.Build());
                 }
@@ -359,12 +359,71 @@ public class WalletModule : AbstractModule
 
             await ReplyToDirectMessageAsync(embed: successEmbed.Build());
 
-            for (var i = 0; i < transferResult.TxHashList.Length; i++)
+            for (var i = 0; i < transferResult.TransactionHashList.Length; i++)
             {
                 var txEmbed = new EmbedBuilder()
                     .WithColor(Color.Orange)
-                    .WithTitle($":moneybag: TRANSACTION PAID ({i + 1}/{transferResult.TxHashList.Length})")
-                    .WithDescription($"Amount: {DaemonUtility.FormatAtomicUnit(transferResult.AmountList[i], _blockchainOptions.CoinUnit)} {_blockchainOptions.CoinTicker}\nFee: {DaemonUtility.FormatAtomicUnit(transferResult.FeeList[i], _blockchainOptions.CoinUnit)} {_blockchainOptions.CoinTicker}\nTransaction hash: `{transferResult.TxHashList[i]}`");
+                    .WithTitle($":moneybag: TRANSACTION PAID ({i + 1}/{transferResult.TransactionHashList.Length})")
+                    .WithDescription($"Amount: {DaemonUtility.FormatAtomicUnit(transferResult.AmountList[i], _blockchainOptions.CoinUnit)} {_blockchainOptions.CoinTicker}\nFee: {DaemonUtility.FormatAtomicUnit(transferResult.FeeList[i], _blockchainOptions.CoinUnit)} {_blockchainOptions.CoinTicker}\nTransaction hash: `{transferResult.TransactionHashList[i]}`");
+
+                await ReplyToDirectMessageAsync(embed: txEmbed.Build());
+            }
+
+            await AddReactionAsync("💰");
+        }
+        catch (Exception ex)
+        {
+            await CatchError(ex);
+        }
+    }
+
+    [Command("OptimizeWallet")]
+    [Alias("Optimize")]
+    [Summary("Optimize wallet for sending large transaction.")]
+    public async Task OptimizeWalletAsync()
+    {
+        try
+        {
+            var walletInfo = await GetOrCreateWalletAccountAsync(Context.User.Id, _dbContextFactory, _walletRpcClient);
+
+            var balanceResponse = await _walletRpcClient.GetBalanceAsync(new CommandRpcGetBalance.Request { AccountIndex = walletInfo.AccountIndex });
+            if (balanceResponse == null) throw new Exception();
+
+            if (balanceResponse.UnlockedBalance <= 0)
+            {
+                await ReplyAsync(":x: Unable to optimize wallet as balance is pending and unable to spend. Please try again later.");
+                await AddReactionAsync("❌");
+                return;
+            }
+
+            var sweepAllResponse = await _walletRpcClient.SweepAllAsync(new CommandRpcSweepAll.Request
+            {
+                Address = walletInfo.TipWalletAddress,
+                AccountIndex = walletInfo.AccountIndex,
+                Priority = 1,
+                GetTransactionHex = true
+            });
+
+            if (sweepAllResponse == null || sweepAllResponse.AmountList.Length == 0)
+            {
+                await ReplyAsync("The transaction failed to process. This can be due to not enough unspent output or unable to cover the transaction fee.");
+                await AddReactionAsync("❌");
+                return;
+            }
+
+            var successEmbed = new EmbedBuilder()
+                .WithColor(Color.Green)
+                .WithTitle(":moneybag: OPTIMIZE RESULT")
+                .WithDescription("Wallet is now combining outputs for larger transactions, please wait for about 22 minutes (10 blocks) before your coins will be made available.");
+
+            await ReplyToDirectMessageAsync(embed: successEmbed.Build());
+
+            for (var i = 0; i < sweepAllResponse.TransactionHashList.Length; i++)
+            {
+                var txEmbed = new EmbedBuilder()
+                    .WithColor(Color.Orange)
+                    .WithTitle($":moneybag: TRANSACTION PAID ({i + 1}/{sweepAllResponse.TransactionHashList.Length})")
+                    .WithDescription($"Amount: {DaemonUtility.FormatAtomicUnit(sweepAllResponse.AmountList[i], _blockchainOptions.CoinUnit)} {_blockchainOptions.CoinTicker}\nFee: {DaemonUtility.FormatAtomicUnit(sweepAllResponse.FeeList[i], _blockchainOptions.CoinUnit)} {_blockchainOptions.CoinTicker}\nTransaction hash: `{sweepAllResponse.TransactionHashList[i]}`");
 
                 await ReplyToDirectMessageAsync(embed: txEmbed.Build());
             }

@@ -8,7 +8,7 @@ using TheDialgaTeam.Worktips.Explorer.Server.Options;
 
 namespace TheDialgaTeam.Worktips.Explorer.Server.Services;
 
-public class DiscordHostedService : IHostedService
+public class DiscordHostedService : IHostedService, IDisposable
 {
     private readonly DiscordShardedClient _discordShardedClient;
     private readonly CommandService _commandService;
@@ -130,5 +130,10 @@ public class DiscordHostedService : IHostedService
                 await _commandService.ExecuteAsync(context, argPos, _serviceProvider);
             }
         });
+    }
+
+    public void Dispose()
+    {
+        _discordShardedClient.Dispose();
     }
 }

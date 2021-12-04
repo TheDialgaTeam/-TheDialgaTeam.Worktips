@@ -9,11 +9,23 @@
 						<FigureImage Source="images/worktips-logo.png" AlternateText="Worktips Logo" />
 					</Figure>
 				</BarBrand>
-				<BarToggler/>
+				<BarToggler Margin="Margin.Is3.FromRight"/>
 				<BarMenu>
-					<BarStart>
-						<BarItem Margin="Margin.Is3.FromLeft">
+					<BarStart Margin="Margin.Is3.FromLeft">
+						<BarItem>
+							<BarLink To="https://worktipscoin.com/"><Icon Name="@("fas fa-home")"/> Home Page</BarLink>
+						</BarItem>
+						<BarItem>
 							<BarLink To="/"><Icon Name="@("fas fa-dice-d6")"/> Block Explorer</BarLink>
+						</BarItem>
+						<BarItem>
+							<BarLink To="/nodes"><Icon Name="@("fas fa-server")"/> Nodes</BarLink>
+						</BarItem>
+						<BarItem>
+							<BarLink To="/pools"><Icon Name="@("far fa-check-square")"/> Pools</BarLink>
+						</BarItem>
+						<BarItem>
+							<BarLink To="https://discord.gg/akcHw9F5K3"><Icon Name="@("fab fa-discord")"/> Discord</BarLink>
 						</BarItem>
 					</BarStart>
 				</BarMenu>
