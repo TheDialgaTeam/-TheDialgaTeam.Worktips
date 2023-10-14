@@ -10,8 +10,7 @@
   "profiles": {
     "TheDialgaTeam.Worktips.Explorer.Server": {
       "commandName": "Project",
-      "workingDirectory":
-        "D:\\Git\\TheDialgaTeam\\TheDialgaTeam.Worktips.Core\\TheDialgaTeam.Worktips.Explorer\\Server\\bin\\Debug\\net6.0",
+      "workingDirectory": "D:\\Git\\TheDialgaTeam\\TheDialgaTeam.Worktips\\TheDialgaTeam.Worktips.Explorer\\Server\\bin\\Debug\\net6.0",
       "launchBrowser": true,
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"

@@ -1,20 +1,19 @@
-﻿using Discord;
-using Discord.Commands;
+﻿using System.Globalization;
+using Discord;
+using Discord.Interactions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using TheDialgaTeam.Core.Logger.Extensions.Logging;
 using TheDialgaTeam.Cryptonote.Rpc.Worktips;
 using TheDialgaTeam.Cryptonote.Rpc.Worktips.Json.Wallet;
 using TheDialgaTeam.Worktips.Explorer.Server.Database;
 using TheDialgaTeam.Worktips.Explorer.Server.Database.Tables;
-using TheDialgaTeam.Worktips.Explorer.Server.Discord.Command;
 using TheDialgaTeam.Worktips.Explorer.Server.Options;
 using TheDialgaTeam.Worktips.Explorer.Shared;
 
 namespace TheDialgaTeam.Worktips.Explorer.Server.Discord.Modules;
 
-[Name("Wallet")]
-public class WalletModule : AbstractModule
+[Group("wallet", "Wallet Module")]
+public sealed class WalletModule : InteractionModuleBase<ShardedInteractionContext>
 {
     private readonly DiscordOptions _discordOptions;
     private readonly BlockchainOptions _blockchainOptions;
@@ -22,7 +21,7 @@ public class WalletModule : AbstractModule
     private readonly WalletRpcClient _walletRpcClient;
     private readonly DaemonRpcClient _daemonRpcClient;
 
-    public WalletModule(IHostApplicationLifetime hostApplicationLifetime, ILoggerTemplate<AbstractModule> logger, IOptions<DiscordOptions> discordOptions, IOptions<BlockchainOptions> blockchainOptions, IDbContextFactory<SqliteDatabaseContext> dbContextFactory, WalletRpcClient walletRpcClient, DaemonRpcClient daemonRpcClient) : base(hostApplicationLifetime, logger)
+    public WalletModule(IOptions<DiscordOptions> discordOptions, IOptions<BlockchainOptions> blockchainOptions, IDbContextFactory<SqliteDatabaseContext> dbContextFactory, WalletRpcClient walletRpcClient, DaemonRpcClient daemonRpcClient)
     {
         _discordOptions = discordOptions.Value;
         _blockchainOptions = blockchainOptions.Value;
@@ -30,409 +29,421 @@ public class WalletModule : AbstractModule
         _walletRpcClient = walletRpcClient;
         _daemonRpcClient = daemonRpcClient;
     }
-
+    
     private static bool CheckWalletAddress(string address)
     {
         return address.StartsWith("Wtma", StringComparison.Ordinal) || address.StartsWith("Wtmi", StringComparison.Ordinal) || address.StartsWith("Wtms", StringComparison.Ordinal);
     }
-
-    [Command("RegisterWallet")]
-    [Alias("Register")]
-    [Summary("Register/Update your wallet with the tip bot.")]
-    [Example("RegisterWallet WtmaL4cVq7fVzT1VAtYpNUShZcRvjn1PubPVeKMMT7BM7hSFNA5aCSo6hiaGdzvB7GZfntpE4i5xZfAcQCdYhg3L9ynyQtgQEx")]
-    public async Task RegisterWalletAsync([Summary("Wallet address.")] [Remainder] string walletAddress)
+    
+    private static async Task<WalletAccount> GetOrCreateWalletAccountAsync(ulong userId, IDbContextFactory<SqliteDatabaseContext> dbContextFactory, WalletRpcClient walletRpcClient)
     {
-        try
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync().ConfigureAwait(false);
+
+        var result = await dbContext.WalletAccounts.SingleOrDefaultAsync(account => account.UserId == userId).ConfigureAwait(false);
+        if (result != null) return result;
+
+        var newWallet = await walletRpcClient.CreateAccountAsync(new CommandRpcCreateAccount.Request { Label = userId.ToString() }).ConfigureAwait(false);
+        if (newWallet == null) throw new Exception();
+
+        var walletAccount = new WalletAccount
         {
-            if (!CheckWalletAddress(walletAddress))
-            {
-                await ReplyAsync($"This is not a valid {_blockchainOptions.CoinName} address!");
-                await AddReactionAsync("❌");
-                return;
-            }
+            UserId = userId,
+            RegisteredWalletAddress = null,
+            AccountIndex = newWallet.AccountIndex,
+            TipBotWalletAddress = newWallet.Address
+        };
 
-            await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
-            var result = await dbContext.WalletAccounts.FindAsync(Context.User.Id);
+        dbContext.WalletAccounts.Add(walletAccount);
+        await dbContext.SaveChangesAsync().ConfigureAwait(false);
 
-            if (result == null)
-            {
-                var newWallet = await _walletRpcClient.CreateAccountAsync(new CommandRpcCreateAccount.Request { Label = Context.User.Id.ToString() });
-                if (newWallet == null) throw new Exception("Could not create a new wallet.");
-
-                var walletAccount = new WalletAccount
-                {
-                    UserId = Context.User.Id,
-                    RegisteredWalletAddress = walletAddress,
-                    AccountIndex = newWallet.AccountIndex,
-                    TipWalletAddress = newWallet.Address
-                };
-
-                dbContext.WalletAccounts.Add(walletAccount);
-                await dbContext.SaveChangesAsync();
-
-                await ReplyToDirectMessageAsync($"Successfully registered your wallet!\nDeposit {_blockchainOptions.CoinTicker} to start tipping!\n\nYour {_blockchainOptions.CoinTicker} Tip Bot Address: `{newWallet.Address}`").ConfigureAwait(false);
-                await AddReactionAsync("✅").ConfigureAwait(false);
-            }
-            else
-            {
-                result.RegisteredWalletAddress = walletAddress;
-                await dbContext.SaveChangesAsync();
-
-                await ReplyToDirectMessageAsync("Successfully updated your wallet!");
-                await AddReactionAsync("✅").ConfigureAwait(false);
-            }
-        }
-        catch (Exception ex)
-        {
-            await CatchError(ex);
-        }
+        return walletAccount;
     }
-
-    [Command("WalletInfo")]
-    [Alias("Info")]
-    [Summary("Display your wallet information.")]
-    public async Task WalletInfoAsync()
+    
+    [SlashCommand("register", "Register/Update your wallet to your tip bot wallet.")]
+    public async Task RegisterWalletCommand([Summary("walletAddress", "Your personal wallet address.")] string walletAddress)
     {
-        try
+        await DeferAsync(true);
+        
+        if (!CheckWalletAddress(walletAddress))
         {
-            var walletInfo = await GetOrCreateWalletAccountAsync(Context.User.Id, _dbContextFactory, _walletRpcClient);
-
-            await ReplyToDirectMessageAsync($":information_desk_person: ACCOUNT INFO\n:purse: Deposit Address: `{walletInfo.TipWalletAddress}`\n\n:purse: Registered Address: `{walletInfo.RegisteredWalletAddress ?? string.Empty}`\n\nNote: If you did not register your wallet, you will not be able to withdraw your {_blockchainOptions.CoinTicker}.");
-            await AddReactionAsync("✅");
+            await FollowupAsync(embed: new EmbedBuilder()
+                .WithColor(Color.Red)
+                .WithTitle("Error")
+                .WithDescription($"This is not a valid {_blockchainOptions.CoinName} wallet address!")
+                .Build(), ephemeral: true).ConfigureAwait(false);
+            
+            return;
         }
-        catch (Exception ex)
+        
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync().ConfigureAwait(false);
+        var result = await dbContext.WalletAccounts.SingleOrDefaultAsync(account => account.UserId == Context.User.Id).ConfigureAwait(false);
+
+        if (result == null)
         {
-            await CatchError(ex);
-        }
-    }
+            var newWallet = await _walletRpcClient.CreateAccountAsync(new CommandRpcCreateAccount.Request { Label = Context.User.Id.ToString() }).ConfigureAwait(false);
+            if (newWallet == null) throw new Exception("Could not create a new wallet.");
 
-    [Command("WalletBalance")]
-    [Alias("Balance", "Bal")]
-    [Summary("Check your wallet balance.")]
-    public async Task WalletBalanceAsync()
-    {
-        try
-        {
-            var walletInfo = await GetOrCreateWalletAccountAsync(Context.User.Id, _dbContextFactory, _walletRpcClient);
-
-            var balanceResponse = await _walletRpcClient.GetBalanceAsync(new CommandRpcGetBalance.Request { AccountIndex = walletInfo.AccountIndex });
-            if (balanceResponse == null) throw new Exception();
-
-            var heightResponse = await _walletRpcClient.GetHeightAsync();
-            if (heightResponse == null) throw new Exception();
-
-            var daemonHeightResponse = await _daemonRpcClient.GetHeightAsync();
-            if (daemonHeightResponse == null) throw new Exception();
-
-            await ReplyToDirectMessageAsync($":moneybag: YOUR BALANCE\n:moneybag: Available: {DaemonUtility.FormatAtomicUnit(balanceResponse.UnlockedBalance, _blockchainOptions.CoinUnit)} {_blockchainOptions.CoinTicker}\n:purse: Pending: {DaemonUtility.FormatAtomicUnit(balanceResponse.Balance - balanceResponse.UnlockedBalance, _blockchainOptions.CoinUnit)} {_blockchainOptions.CoinTicker} ({balanceResponse.BlocksToUnlock} blocks remaining)\n:arrows_counterclockwise: Status: {heightResponse.Height} / {daemonHeightResponse.Height}");
-            await AddReactionAsync("✅");
-        }
-        catch (Exception ex)
-        {
-            await CatchError(ex);
-        }
-    }
-
-    [Command("BotWalletBalance")]
-    [Alias("BotBalance", "BotBal")]
-    [Summary("Check the bot wallet balance.")]
-    public async Task BotWalletBalanceAsync()
-    {
-        try
-        {
-            var walletInfo = await GetOrCreateWalletAccountAsync(Context.Client.CurrentUser.Id, _dbContextFactory, _walletRpcClient);
-
-            var balanceResponse = await _walletRpcClient.GetBalanceAsync(new CommandRpcGetBalance.Request { AccountIndex = walletInfo.AccountIndex });
-            if (balanceResponse == null) throw new Exception();
-
-            var heightResponse = await _walletRpcClient.GetHeightAsync();
-            if (heightResponse == null) throw new Exception();
-
-            var daemonHeightResponse = await _daemonRpcClient.GetHeightAsync();
-            if (daemonHeightResponse == null) throw new Exception();
-
-            await ReplyAsync($":moneybag: TIP BOT BALANCE\n:moneybag: Available: {DaemonUtility.FormatAtomicUnit(balanceResponse.UnlockedBalance, _blockchainOptions.CoinUnit)} {_blockchainOptions.CoinTicker}\n:purse: Pending: {DaemonUtility.FormatAtomicUnit(balanceResponse.Balance - balanceResponse.UnlockedBalance, _blockchainOptions.CoinUnit)} {_blockchainOptions.CoinTicker} ({balanceResponse.BlocksToUnlock} blocks remaining)\n:arrows_counterclockwise: Status: {heightResponse.Height} / {daemonHeightResponse.Height}");
-            await AddReactionAsync("✅");
-        }
-        catch (Exception ex)
-        {
-            await CatchError(ex);
-        }
-    }
-
-    [Command("WalletWithdraw")]
-    [Alias("Withdraw")]
-    [Summary("Withdraw your coins to the registered address.")]
-    [Example("WalletWithdraw 1")]
-    public async Task WalletWithdrawAsync([Summary("Amount to withdraw.")] decimal amount)
-    {
-        try
-        {
-            var walletInfo = await GetOrCreateWalletAccountAsync(Context.User.Id, _dbContextFactory, _walletRpcClient);
-
-            if (walletInfo.RegisteredWalletAddress == null)
+            var walletAccount = new WalletAccount
             {
-                await ReplyAsync("You are required to register your wallet using `RegisterWallet` command!\n\nFor more info, use `help RegisterWallet` for how to use the command.");
-                await AddReactionAsync("❌");
-                return;
-            }
-
-            var atomicAmountToWithdraw = Convert.ToUInt64(Math.Floor(amount * _blockchainOptions.CoinUnit));
-
-            if (atomicAmountToWithdraw < _discordOptions.Modules.Tip.WithdrawMinimumAmount)
-            {
-                await ReplyAsync($":x: Minimum withdrawal amount is: {DaemonUtility.FormatAtomicUnit(_discordOptions.Modules.Tip.WithdrawMinimumAmount, _blockchainOptions.CoinUnit)} {_blockchainOptions.CoinTicker}");
-                await AddReactionAsync("❌");
-                return;
-            }
-
-            var balanceResponse = await _walletRpcClient.GetBalanceAsync(new CommandRpcGetBalance.Request { AccountIndex = walletInfo.AccountIndex });
-            if (balanceResponse == null) throw new Exception();
-
-            if (atomicAmountToWithdraw > balanceResponse.UnlockedBalance)
-            {
-                await ReplyAsync(":x: Insufficient balance to withdraw this amount.");
-                await AddReactionAsync("❌");
-                return;
-            }
-
-            var transferRequest = new CommandRpcTransferSplit.Request
-            {
-                AccountIndex = walletInfo.AccountIndex,
-                Destinations = new[]
-                {
-                    new CommandRpcTransferSplit.TransferDestination
-                    {
-                        Address = walletInfo.RegisteredWalletAddress,
-                        Amount = atomicAmountToWithdraw
-                    }
-                },
-                Priority = 5,
-                GetTransactionHex = true
+                UserId = Context.User.Id,
+                RegisteredWalletAddress = walletAddress,
+                AccountIndex = newWallet.AccountIndex,
+                TipBotWalletAddress = newWallet.Address
             };
 
-            var transferResult = await _walletRpcClient.TransferSplitAsync(transferRequest);
+            dbContext.WalletAccounts.Add(walletAccount);
+            await dbContext.SaveChangesAsync().ConfigureAwait(false);
 
-            if (transferResult == null || transferResult.AmountList.Length == 0)
-            {
-                var failEmbed = new EmbedBuilder()
-                    .WithColor(Color.Red)
-                    .WithTitle(":moneybag: TRANSFER RESULT")
-                    .WithDescription("Failed to withdrawn this amount due to insufficient balance to cover the transaction fees.");
-
-                await ReplyToDirectMessageAsync(embed: failEmbed.Build());
-                await AddReactionAsync("❌");
-                return;
-            }
-
-            var successEmbed = new EmbedBuilder()
-                .WithColor(Color.Green)
-                .WithTitle(":moneybag: TRANSFER RESULT")
-                .WithDescription($"You have withdrawn {DaemonUtility.FormatAtomicUnit(atomicAmountToWithdraw, _blockchainOptions.CoinUnit)} {_blockchainOptions.CoinTicker}");
-
-            await ReplyToDirectMessageAsync(embed: successEmbed.Build());
-
-            for (var i = 0; i < transferResult.TransactionHashList.Length; i++)
-            {
-                var txEmbed = new EmbedBuilder()
-                    .WithColor(Color.Orange)
-                    .WithTitle($":moneybag: TRANSACTION PAID ({i + 1}/{transferResult.TransactionHashList.Length})")
-                    .WithDescription($"Amount: {DaemonUtility.FormatAtomicUnit(transferResult.AmountList[i], _blockchainOptions.CoinUnit)} {_blockchainOptions.CoinTicker}\nFee: {DaemonUtility.FormatAtomicUnit(transferResult.FeeList[i], _blockchainOptions.CoinUnit)} {_blockchainOptions.CoinTicker}\nTransaction hash: `{transferResult.TransactionHashList[i]}`");
-
-                await ReplyToDirectMessageAsync(embed: txEmbed.Build());
-            }
-
-            await AddReactionAsync("💰");
+            await FollowupAsync(embed: new EmbedBuilder()
+                .WithColor(Color.Orange)
+                .WithTitle("Register Completed")
+                .WithDescription($"Successfully registered your wallet!\nDeposit {_blockchainOptions.CoinTicker} to start tipping!")
+                .AddField($"Your {_blockchainOptions.CoinTicker} Tip Bot Wallet Address:", $"`{newWallet.Address}`")
+                .Build(), ephemeral: true).ConfigureAwait(false);
         }
-        catch (Exception ex)
+        else
         {
-            await CatchError(ex);
+            result.RegisteredWalletAddress = walletAddress;
+            await dbContext.SaveChangesAsync();
+
+            await FollowupAsync(embed: new EmbedBuilder()
+                .WithColor(Color.Orange)
+                .WithTitle("Update Completed")
+                .WithDescription($"Successfully updated your wallet!")
+                .Build(), ephemeral: true).ConfigureAwait(false);
         }
     }
 
-    [Command("Tip")]
-    [Summary("Tip someone using your tip wallet.")]
-    [Example("Tip 1 @user\nTip 1 <userId>")]
-    [RequireContext(ContextType.Guild)]
-    public async Task TipAsync([Summary("Amount to tip.")] decimal amount, [Summary("Users to tip.")] params IUser[] users)
+    [SlashCommand("info", "Display your tip bot wallet information.")]
+    public async Task WalletInfoCommand()
     {
-        try
+        await DeferAsync(true).ConfigureAwait(false);
+        
+        var walletInfo = await GetOrCreateWalletAccountAsync(Context.User.Id, _dbContextFactory, _walletRpcClient).ConfigureAwait(false);
+
+        var balanceResponse = await _walletRpcClient.GetBalanceAsync(new CommandRpcGetBalance.Request { AccountIndex = walletInfo.AccountIndex }).ConfigureAwait(false);
+        if (balanceResponse == null) throw new Exception();
+
+        var heightResponse = await _walletRpcClient.GetHeightAsync().ConfigureAwait(false);
+        if (heightResponse == null) throw new Exception();
+
+        var daemonHeightResponse = await _daemonRpcClient.GetHeightAsync().ConfigureAwait(false);
+        if (daemonHeightResponse == null) throw new Exception();
+
+        await FollowupAsync(embed: new EmbedBuilder()
+            .WithColor(Color.Orange)
+            .WithTitle("Your Tip Bot Wallet Information")
+            .AddField("Deposit Address", $"`{walletInfo.TipBotWalletAddress}`")
+            .AddField("Registered Address", $"`{walletInfo.RegisteredWalletAddress ?? string.Empty}`")
+            .AddField("Available", $"{DaemonUtility.FormatAtomicUnit(balanceResponse.UnlockedBalance, _blockchainOptions.CoinUnit)} {_blockchainOptions.CoinTicker}")
+            .AddField($"Pending ({balanceResponse.BlocksToUnlock} blocks remaining)", $"{DaemonUtility.FormatAtomicUnit(balanceResponse.Balance - balanceResponse.UnlockedBalance, _blockchainOptions.CoinUnit)} {_blockchainOptions.CoinTicker}")
+            .AddField("Sync Status", $"{heightResponse.Height} / {daemonHeightResponse.Height}")
+            .WithFooter($"Note: If you did not register your wallet, you will not be able to withdraw your {_blockchainOptions.CoinTicker}.")
+            .Build(), ephemeral: true).ConfigureAwait(false);
+    }
+
+    [SlashCommand("balance", "Check your tip bot wallet balance.")]
+    public async Task WalletBalanceCommand()
+    {
+        await DeferAsync(true).ConfigureAwait(false);
+        
+        var walletInfo = await GetOrCreateWalletAccountAsync(Context.User.Id, _dbContextFactory, _walletRpcClient).ConfigureAwait(false);
+
+        var balanceResponse = await _walletRpcClient.GetBalanceAsync(new CommandRpcGetBalance.Request { AccountIndex = walletInfo.AccountIndex }).ConfigureAwait(false);
+        if (balanceResponse == null) throw new Exception();
+
+        var heightResponse = await _walletRpcClient.GetHeightAsync().ConfigureAwait(false);
+        if (heightResponse == null) throw new Exception();
+
+        var daemonHeightResponse = await _daemonRpcClient.GetHeightAsync().ConfigureAwait(false);
+        if (daemonHeightResponse == null) throw new Exception();
+
+        await FollowupAsync(embed: new EmbedBuilder()
+            .WithColor(Color.Orange)
+            .WithTitle("Your Tip Bot Wallet Information")
+            .AddField("Available", $"{DaemonUtility.FormatAtomicUnit(balanceResponse.UnlockedBalance, _blockchainOptions.CoinUnit)} {_blockchainOptions.CoinTicker}")
+            .AddField($"Pending ({balanceResponse.BlocksToUnlock} blocks remaining)", $"{DaemonUtility.FormatAtomicUnit(balanceResponse.Balance - balanceResponse.UnlockedBalance, _blockchainOptions.CoinUnit)} {_blockchainOptions.CoinTicker}")
+            .AddField("Sync Status", $"{heightResponse.Height} / {daemonHeightResponse.Height}")
+            .WithFooter($"Note: If you did not register your wallet, you will not be able to withdraw your {_blockchainOptions.CoinTicker}.")
+            .Build(), ephemeral: true).ConfigureAwait(false);
+    }
+
+    [SlashCommand("botbalance", "Check the bot wallet balance.", true)]
+    public async Task BotWalletBalanceCommand()
+    {
+        await DeferAsync().ConfigureAwait(false);
+        
+        var walletInfo = await GetOrCreateWalletAccountAsync(Context.Client.CurrentUser.Id, _dbContextFactory, _walletRpcClient).ConfigureAwait(false);
+
+        var balanceResponse = await _walletRpcClient.GetBalanceAsync(new CommandRpcGetBalance.Request { AccountIndex = walletInfo.AccountIndex }).ConfigureAwait(false);
+        if (balanceResponse == null) throw new Exception();
+
+        var heightResponse = await _walletRpcClient.GetHeightAsync().ConfigureAwait(false);
+        if (heightResponse == null) throw new Exception();
+
+        var daemonHeightResponse = await _daemonRpcClient.GetHeightAsync().ConfigureAwait(false);
+        if (daemonHeightResponse == null) throw new Exception();
+
+        await FollowupAsync(embed: new EmbedBuilder()
+            .WithColor(Color.Orange)
+            .WithTitle("Tip Bot Wallet Information")
+            .AddField("Available", $"{DaemonUtility.FormatAtomicUnit(balanceResponse.UnlockedBalance, _blockchainOptions.CoinUnit)} {_blockchainOptions.CoinTicker}")
+            .AddField($"Pending ({balanceResponse.BlocksToUnlock} blocks remaining)", $"{DaemonUtility.FormatAtomicUnit(balanceResponse.Balance - balanceResponse.UnlockedBalance, _blockchainOptions.CoinUnit)} {_blockchainOptions.CoinTicker}")
+            .AddField("Sync Status", $"{heightResponse.Height} / {daemonHeightResponse.Height}")
+            .WithFooter($"Note: You can donate by tipping this bot by /tip <amount> {MentionUtils.MentionUser(Context.Client.CurrentUser.Id)}")
+            .Build()).ConfigureAwait(false);
+    }
+
+    [SlashCommand("withdraw", "Withdraw your coins to the registered address.")]
+    public async Task WalletWithdrawCommand([Summary("amount", "Amount to withdraw.")] decimal amount)
+    {
+        await DeferAsync(true).ConfigureAwait(false);
+        
+        var walletInfo = await GetOrCreateWalletAccountAsync(Context.User.Id, _dbContextFactory, _walletRpcClient).ConfigureAwait(false);
+
+        if (walletInfo.RegisteredWalletAddress == null)
         {
-            var walletInfo = await GetOrCreateWalletAccountAsync(Context.User.Id, _dbContextFactory, _walletRpcClient);
+            await FollowupAsync(embed: new EmbedBuilder()
+                .WithColor(Color.Red)
+                .WithTitle("Error")
+                .WithDescription("You are required to register your wallet using `/wallet register` command!")
+                .Build(), ephemeral: true).ConfigureAwait(false);
 
-            var atomicAmountToTip = Convert.ToUInt64(Math.Floor(amount * _blockchainOptions.CoinUnit));
+            return;
+        }
 
-            if (atomicAmountToTip < _discordOptions.Modules.Tip.TipMinimumAmount)
+        var atomicAmountToWithdraw = Convert.ToUInt64(Math.Floor(amount * _blockchainOptions.CoinUnit));
+
+        if (atomicAmountToWithdraw < _discordOptions.Modules.Tip.WithdrawMinimumAmount)
+        {
+            await FollowupAsync(embed: new EmbedBuilder()
+                .WithColor(Color.Red)
+                .WithTitle("Error")
+                .WithDescription($"Minimum withdrawal amount is: {DaemonUtility.FormatAtomicUnit(_discordOptions.Modules.Tip.WithdrawMinimumAmount, _blockchainOptions.CoinUnit)} {_blockchainOptions.CoinTicker}")
+                .Build(), ephemeral: true).ConfigureAwait(false);
+
+            return;
+        }
+
+        var balanceResponse = await _walletRpcClient.GetBalanceAsync(new CommandRpcGetBalance.Request { AccountIndex = walletInfo.AccountIndex }).ConfigureAwait(false);
+        if (balanceResponse == null) throw new Exception();
+
+        if (atomicAmountToWithdraw > balanceResponse.UnlockedBalance)
+        {
+            await FollowupAsync(embed: new EmbedBuilder()
+                .WithColor(Color.Red)
+                .WithTitle("Error")
+                .WithDescription("Insufficient balance to withdraw this amount.")
+                .Build(), ephemeral: true).ConfigureAwait(false);
+
+            return;
+        }
+
+        var transferRequest = new CommandRpcTransferSplit.Request
+        {
+            AccountIndex = walletInfo.AccountIndex,
+            Destinations = new[]
             {
-                await ReplyAsync($":x: Minimum tip amount is: {DaemonUtility.FormatAtomicUnit(_discordOptions.Modules.Tip.TipMinimumAmount, _blockchainOptions.CoinUnit)} {_blockchainOptions.CoinTicker}");
-                await AddReactionAsync("❌");
-                return;
-            }
-
-            var balanceResponse = await _walletRpcClient.GetBalanceAsync(new CommandRpcGetBalance.Request { AccountIndex = walletInfo.AccountIndex });
-            if (balanceResponse == null) throw new Exception();
-
-            if (atomicAmountToTip * Convert.ToUInt64(users.Length) > balanceResponse.UnlockedBalance)
-            {
-                await ReplyAsync(":x: Insufficient balance to tip this amount.");
-                await AddReactionAsync("❌");
-                return;
-            }
-
-            var transferDestinations = new List<CommandRpcTransferSplit.TransferDestination>();
-            var userTipped = new List<IUser>();
-
-            foreach (var user in users)
-            {
-                if (user.Id == Context.Guild.Id || user.Id == Context.Channel.Id || user.Id == Context.User.Id || userTipped.Contains(user)) continue;
-
-                var userWalletInfo = await GetOrCreateWalletAccountAsync(user.Id, _dbContextFactory, _walletRpcClient);
-
-                transferDestinations.Add(new CommandRpcTransferSplit.TransferDestination
+                new CommandRpcTransferSplit.TransferDestination
                 {
-                    Address = userWalletInfo.TipWalletAddress,
-                    Amount = atomicAmountToTip
-                });
-
-                userTipped.Add(user);
-            }
-
-            if (userTipped.Count == 0)
-            {
-                var failEmbed = new EmbedBuilder()
-                    .WithColor(Color.Red)
-                    .WithTitle(":moneybag: TRANSFER RESULT")
-                    .WithDescription("Failed to tip this amount due to no users to tip.");
-
-                await ReplyToDirectMessageAsync(embed: failEmbed.Build());
-                await AddReactionAsync("❌");
-                return;
-            }
-
-            var transferRequest = new CommandRpcTransferSplit.Request
-            {
-                AccountIndex = walletInfo.AccountIndex,
-                Destinations = transferDestinations.ToArray(),
-                Priority = 1,
-                GetTransactionHex = true
-            };
-
-            var transferResult = await _walletRpcClient.TransferSplitAsync(transferRequest);
-
-            if (transferResult == null || transferResult.AmountList.Length == 0)
-            {
-                var failEmbed = new EmbedBuilder()
-                    .WithColor(Color.Red)
-                    .WithTitle(":moneybag: TRANSFER RESULT")
-                    .WithDescription("Failed to tip this amount due to insufficient balance to cover the transaction fees.");
-
-                await ReplyToDirectMessageAsync(embed: failEmbed.Build());
-                await AddReactionAsync("❌");
-                return;
-            }
-
-            foreach (var user in userTipped)
-            {
-                if (user.IsBot) continue;
-
-                try
-                {
-                    var dmChannel = await user.GetOrCreateDMChannelAsync();
-
-                    var notificationEmbed = new EmbedBuilder()
-                        .WithColor(Color.Green)
-                        .WithTitle(":moneybag: INCOMING TIP")
-                        .WithDescription($":moneybag: You got a tip of {DaemonUtility.FormatAtomicUnit(atomicAmountToTip, _blockchainOptions.CoinUnit)} {_blockchainOptions.CoinTicker} from {Context.User}\n:hash: Transaction hash: {string.Join(", ", transferResult.TransactionHashList.Select(a => $"`{a}`"))}");
-
-                    await dmChannel.SendMessageAsync(embed: notificationEmbed.Build());
+                    Address = walletInfo.RegisteredWalletAddress,
+                    Amount = atomicAmountToWithdraw
                 }
-                catch (Exception)
+            },
+            Priority = 1,
+            GetTransactionHex = true
+        };
+
+        var transferResult = await _walletRpcClient.TransferSplitAsync(transferRequest).ConfigureAwait(false);
+
+        if (transferResult == null || transferResult.AmountList.Length == 0)
+        {
+            await FollowupAsync(embed: new EmbedBuilder()
+                .WithColor(Color.Red)
+                .WithTitle("Transfer Result")
+                .WithDescription("Failed to withdraw this amount due to insufficient balance to cover the transaction fees.")
+                .Build(), ephemeral: true).ConfigureAwait(false);
+            
+            return;
+        }
+
+        var response = new List<Embed>();
+
+        var successEmbed = new EmbedBuilder()
+            .WithColor(Color.Green)
+            .WithTitle("Transfer Result")
+            .WithDescription($"You have withdrawn {DaemonUtility.FormatAtomicUnit(atomicAmountToWithdraw, _blockchainOptions.CoinUnit)} {_blockchainOptions.CoinTicker}");
+
+        response.Add(successEmbed.Build());
+
+        for (var i = 0; i < transferResult.TransactionHashList.Length; i++)
+        {
+            var txEmbed = new EmbedBuilder()
+                .WithColor(Color.Orange)
+                .WithTitle($"Transaction Paid ({i + 1}/{transferResult.TransactionHashList.Length})")
+                .AddField("Amount", $"{DaemonUtility.FormatAtomicUnit(transferResult.AmountList[i], _blockchainOptions.CoinUnit)} {_blockchainOptions.CoinTicker}")
+                .AddField("Fee", $"{DaemonUtility.FormatAtomicUnit(transferResult.FeeList[i], _blockchainOptions.CoinUnit)} {_blockchainOptions.CoinTicker}")
+                .AddField("Transaction hash", $"`{transferResult.TransactionHashList[i]}`");
+
+            response.Add(txEmbed.Build());
+        }
+
+        await FollowupAsync(embeds: response.ToArray(), ephemeral: true).ConfigureAwait(false);
+    }
+    
+    [SlashCommand("tip", "Tip someone using your tip wallet.", true)]
+    public async Task TipCommand([Summary("amount", "Amount to tip.")] decimal amount, [Summary("users", "Users to tip.")] string users)
+    {
+        await DeferAsync();
+        
+        var walletInfo = await GetOrCreateWalletAccountAsync(Context.User.Id, _dbContextFactory, _walletRpcClient).ConfigureAwait(false);
+
+        var atomicAmountToTip = Convert.ToUInt64(Math.Floor(amount * _blockchainOptions.CoinUnit));
+
+        if (atomicAmountToTip < _discordOptions.Modules.Tip.TipMinimumAmount)
+        {
+            await FollowupAsync(embed: new EmbedBuilder()
+                .WithColor(Color.Red)
+                .WithTitle("Error")
+                .WithDescription($"Minimum tip amount is: {DaemonUtility.FormatAtomicUnit(_discordOptions.Modules.Tip.TipMinimumAmount, _blockchainOptions.CoinUnit)} {_blockchainOptions.CoinTicker}")
+                .Build()).ConfigureAwait(false);
+
+            return;
+        }
+
+        var balanceResponse = await _walletRpcClient.GetBalanceAsync(new CommandRpcGetBalance.Request { AccountIndex = walletInfo.AccountIndex }).ConfigureAwait(false);
+        if (balanceResponse == null) throw new Exception();
+
+        if (atomicAmountToTip * Convert.ToUInt64(users.Length) > balanceResponse.UnlockedBalance)
+        {
+            await FollowupAsync(embed: new EmbedBuilder()
+                .WithColor(Color.Red)
+                .WithTitle("Error")
+                .WithDescription("Insufficient balance to tip this amount.")
+                .Build()).ConfigureAwait(false);
+
+            return;
+        }
+
+        var usersToTip = new List<IUser>();
+        var transferDestinations = new List<CommandRpcTransferSplit.TransferDestination>();
+        var userTipped = new List<IUser>();
+        
+        foreach (var userText in users.Split(' ', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (MentionUtils.TryParseUser(userText, out var userId))
+            {
+                if (Context.Guild != null)
                 {
-                    // ignored
+                    usersToTip.Add(Context.Guild.GetUser(userId) ?? await Context.Channel.GetUserAsync(userId).ConfigureAwait(false));
+                }
+                else
+                {
+                    usersToTip.Add(await Context.Channel.GetUserAsync(userId).ConfigureAwait(false));
                 }
             }
 
-            var successEmbed = new EmbedBuilder()
-                .WithColor(Color.Green)
-                .WithTitle(":moneybag: TRANSFER RESULT")
-                .WithDescription($"You have tipped {DaemonUtility.FormatAtomicUnit(atomicAmountToTip, _blockchainOptions.CoinUnit)} {_blockchainOptions.CoinTicker} to {userTipped.Count} users");
-
-            await ReplyToDirectMessageAsync(embed: successEmbed.Build());
-
-            for (var i = 0; i < transferResult.TransactionHashList.Length; i++)
+            if (ulong.TryParse(userText, NumberStyles.None, CultureInfo.InvariantCulture, out var id))
             {
-                var txEmbed = new EmbedBuilder()
-                    .WithColor(Color.Orange)
-                    .WithTitle($":moneybag: TRANSACTION PAID ({i + 1}/{transferResult.TransactionHashList.Length})")
-                    .WithDescription($"Amount: {DaemonUtility.FormatAtomicUnit(transferResult.AmountList[i], _blockchainOptions.CoinUnit)} {_blockchainOptions.CoinTicker}\nFee: {DaemonUtility.FormatAtomicUnit(transferResult.FeeList[i], _blockchainOptions.CoinUnit)} {_blockchainOptions.CoinTicker}\nTransaction hash: `{transferResult.TransactionHashList[i]}`");
-
-                await ReplyToDirectMessageAsync(embed: txEmbed.Build());
+                if (Context.Guild != null)
+                {
+                    usersToTip.Add(Context.Guild.GetUser(id) ?? await Context.Channel.GetUserAsync(userId).ConfigureAwait(false));
+                }
+                else
+                {
+                    usersToTip.Add(await Context.Channel.GetUserAsync(id).ConfigureAwait(false));
+                }
             }
-
-            await AddReactionAsync("💰");
         }
-        catch (Exception ex)
+        
+        foreach (var user in usersToTip)
         {
-            await CatchError(ex);
-        }
-    }
+            if (user.Id == Context.User.Id || userTipped.Contains(user)) continue;
 
-    [Command("OptimizeWallet")]
-    [Alias("Optimize")]
-    [Summary("Optimize wallet for sending large transaction.")]
-    public async Task OptimizeWalletAsync()
-    {
-        try
-        {
-            var walletInfo = await GetOrCreateWalletAccountAsync(Context.User.Id, _dbContextFactory, _walletRpcClient);
+            var userWalletInfo = await GetOrCreateWalletAccountAsync(user.Id, _dbContextFactory, _walletRpcClient).ConfigureAwait(false);
 
-            var balanceResponse = await _walletRpcClient.GetBalanceAsync(new CommandRpcGetBalance.Request { AccountIndex = walletInfo.AccountIndex });
-            if (balanceResponse == null) throw new Exception();
-
-            if (balanceResponse.UnlockedBalance <= 0)
+            transferDestinations.Add(new CommandRpcTransferSplit.TransferDestination
             {
-                await ReplyAsync(":x: Unable to optimize wallet as balance is pending and unable to spend. Please try again later.");
-                await AddReactionAsync("❌");
-                return;
-            }
-
-            var sweepAllResponse = await _walletRpcClient.SweepAllAsync(new CommandRpcSweepAll.Request
-            {
-                Address = walletInfo.TipWalletAddress,
-                AccountIndex = walletInfo.AccountIndex,
-                Priority = 1,
-                GetTransactionHex = true
+                Address = userWalletInfo.TipBotWalletAddress,
+                Amount = atomicAmountToTip
             });
 
-            if (sweepAllResponse == null || sweepAllResponse.AmountList.Length == 0)
-            {
-                await ReplyAsync("The transaction failed to process. This can be due to not enough unspent output or unable to cover the transaction fee.");
-                await AddReactionAsync("❌");
-                return;
-            }
-
-            var successEmbed = new EmbedBuilder()
-                .WithColor(Color.Green)
-                .WithTitle(":moneybag: OPTIMIZE RESULT")
-                .WithDescription("Wallet is now combining outputs for larger transactions, please wait for about 22 minutes (10 blocks) before your coins will be made available.");
-
-            await ReplyToDirectMessageAsync(embed: successEmbed.Build());
-
-            for (var i = 0; i < sweepAllResponse.TransactionHashList.Length; i++)
-            {
-                var txEmbed = new EmbedBuilder()
-                    .WithColor(Color.Orange)
-                    .WithTitle($":moneybag: TRANSACTION PAID ({i + 1}/{sweepAllResponse.TransactionHashList.Length})")
-                    .WithDescription($"Amount: {DaemonUtility.FormatAtomicUnit(sweepAllResponse.AmountList[i], _blockchainOptions.CoinUnit)} {_blockchainOptions.CoinTicker}\nFee: {DaemonUtility.FormatAtomicUnit(sweepAllResponse.FeeList[i], _blockchainOptions.CoinUnit)} {_blockchainOptions.CoinTicker}\nTransaction hash: `{sweepAllResponse.TransactionHashList[i]}`");
-
-                await ReplyToDirectMessageAsync(embed: txEmbed.Build());
-            }
-
-            await AddReactionAsync("💰");
+            userTipped.Add(user);
         }
-        catch (Exception ex)
+
+        if (userTipped.Count == 0)
         {
-            await CatchError(ex);
+            await FollowupAsync(embed: new EmbedBuilder()
+                .WithColor(Color.Red)
+                .WithTitle("Transfer Result")
+                .WithDescription("Failed to tip this amount due to no users to tip.")
+                .Build()).ConfigureAwait(false);
+
+            return;
         }
+
+        var transferRequest = new CommandRpcTransferSplit.Request
+        {
+            AccountIndex = walletInfo.AccountIndex,
+            Destinations = transferDestinations.ToArray(),
+            Priority = 1,
+            GetTransactionHex = true
+        };
+
+        var transferResult = await _walletRpcClient.TransferSplitAsync(transferRequest).ConfigureAwait(false);
+
+        if (transferResult == null || transferResult.AmountList.Length == 0)
+        {
+            await FollowupAsync(embed: new EmbedBuilder()
+                .WithColor(Color.Red)
+                .WithTitle("Transfer Result")
+                .WithDescription("Failed to tip this amount due to insufficient balance to cover the transaction fees.")
+                .Build()).ConfigureAwait(false);
+            
+            return;
+        }
+
+        foreach (var user in userTipped)
+        {
+            if (user.IsBot) continue;
+
+            try
+            {
+                var dmChannel = await user.CreateDMChannelAsync().ConfigureAwait(false);
+                
+                await dmChannel.SendMessageAsync(embed: new EmbedBuilder()
+                    .WithColor(Color.Green)
+                    .WithTitle("Incoming Tip")
+                    .WithDescription($"You got a tip of {DaemonUtility.FormatAtomicUnit(atomicAmountToTip, _blockchainOptions.CoinUnit)} {_blockchainOptions.CoinTicker} from {Context.User}\n:hash: Transaction hash: {string.Join(", ", transferResult.TransactionHashList.Select(a => $"`{a}`"))}")
+                    .Build()).ConfigureAwait(false);
+            }
+            catch
+            {
+                // ignored
+            }
+        }
+
+        var response = new List<Embed>();
+        
+        var successEmbed = new EmbedBuilder()
+            .WithColor(Color.Green)
+            .WithTitle("Transfer Result")
+            .WithDescription($"You have tipped {DaemonUtility.FormatAtomicUnit(atomicAmountToTip, _blockchainOptions.CoinUnit)} {_blockchainOptions.CoinTicker} to {userTipped.Count} users");
+
+        response.Add(successEmbed.Build());
+
+        for (var i = 0; i < transferResult.TransactionHashList.Length; i++)
+        {
+            var txEmbed = new EmbedBuilder()
+                .WithColor(Color.Orange)
+                .WithTitle($"Transaction Paid ({i + 1}/{transferResult.TransactionHashList.Length})")
+                .AddField("Amount", $"{DaemonUtility.FormatAtomicUnit(transferResult.AmountList[i], _blockchainOptions.CoinUnit)} {_blockchainOptions.CoinTicker}")
+                .AddField("Fee", $"{DaemonUtility.FormatAtomicUnit(transferResult.FeeList[i], _blockchainOptions.CoinUnit)} {_blockchainOptions.CoinTicker}")
+                .AddField("Transaction hash", $"`{transferResult.TransactionHashList[i]}`");
+
+            response.Add(txEmbed.Build());
+        }
+
+        await FollowupAsync(embeds: response.ToArray()).ConfigureAwait(false);
     }
 }

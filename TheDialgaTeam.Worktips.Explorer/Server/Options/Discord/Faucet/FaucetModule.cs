@@ -1,6 +1,9 @@
-﻿namespace TheDialgaTeam.Worktips.Explorer.Server.Options.Discord.Faucet;
+﻿using JetBrains.Annotations;
 
-public class FaucetModule
+namespace TheDialgaTeam.Worktips.Explorer.Server.Options.Discord.Faucet;
+
+public sealed class FaucetModule
 {
-    public FaucetAmount[] Amounts { get; set; } = null!;
+    [UsedImplicitly(ImplicitUseKindFlags.Assign)]
+    public FaucetAmount[] Amounts { get; init; } = Array.Empty<FaucetAmount>();
 }

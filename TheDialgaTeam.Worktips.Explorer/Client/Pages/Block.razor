@@ -1,131 +1,133 @@
 ﻿@page "/block/{hash}"
 @using System.Globalization
 
-@inject Daemon.DaemonClient daemonClient
-@inject IPageProgressService pageProgressService
+@inject Daemon.DaemonClient DaemonClient
+@inject IPageProgressService PageProgressService
 
 <PageTitle>Worktips Block Explorer - Block Details</PageTitle>
 
 <Heading Size="HeadingSize.Is3" TextColor="TextColor.Body">Block Details</Heading>
 
 <Row Gutter="(16, 32)">
-	<Column ColumnSize="ColumnSize.Is12.OnDesktop">
-		<Card Background="Background.Primary">
-			<CardHeader TextColor="TextColor.Dark" TextWeight="TextWeight.Bold">@blockInfoResponse.Hash</CardHeader>
-			<CardBody>
-				<Table Narrow="true" Responsive="true" Margin="Margin.Is0">
-					<TableBody>
-						<TableRow>
-							<TableRowHeader>Height</TableRowHeader>
-							<TableRowCell>@blockInfoResponse.Height.ToString("N0")</TableRowCell>
-							<TableRowHeader>Size</TableRowHeader>
-							<TableRowCell>@blockInfoResponse.Size.ToString("N0") bytes</TableRowCell>
-						</TableRow>
+    <Column ColumnSize="ColumnSize.Is12.OnDesktop">
+        <Card Background="Background.Primary">
+            <CardHeader TextColor="TextColor.Dark" TextWeight="TextWeight.Bold">@_blockInfoResponse.Hash</CardHeader>
+            <CardBody>
+                <Table Narrow="true" Responsive="true" Margin="Margin.Is0">
+                    <TableBody>
+                        <TableRow>
+                            <TableRowHeader>Height</TableRowHeader>
+                            <TableRowCell>@_blockInfoResponse.Height.ToString("N0")</TableRowCell>
+                            <TableRowHeader>Size</TableRowHeader>
+                            <TableRowCell>@_blockInfoResponse.Size.ToString("N0") bytes</TableRowCell>
+                        </TableRow>
 
-						<TableRow>
-							<TableRowHeader>Confirmations</TableRowHeader>
-							<TableRowCell>@blockInfoResponse.Confirmation.ToString("N0")</TableRowCell>
-							<TableRowHeader>Miner Reward</TableRowHeader>
-							<TableRowCell>@DaemonUtility.FormatAtomicUnit(blockInfoResponse.MinerReward, coinInfoResponse.Unit) @coinInfoResponse.Ticker</TableRowCell>
-						</TableRow>
+                        <TableRow>
+                            <TableRowHeader>Confirmations</TableRowHeader>
+                            <TableRowCell>@_blockInfoResponse.Confirmation.ToString("N0")</TableRowCell>
+                            <TableRowHeader>Miner Reward</TableRowHeader>
+                            <TableRowCell>@DaemonUtility.FormatAtomicUnit(_blockInfoResponse.MinerReward, _coinInfoResponse.Unit) @_coinInfoResponse.Ticker</TableRowCell>
+                        </TableRow>
 
-						<TableRow>
-							<TableRowHeader>Date & Time</TableRowHeader>
-							<TableRowCell>@DateTimeOffset.FromUnixTimeSeconds(Convert.ToInt64(blockInfoResponse.Timestamp)).LocalDateTime</TableRowCell>
-							<TableRowHeader>Reward</TableRowHeader>
-							<TableRowCell>@DaemonUtility.FormatAtomicUnit(blockInfoResponse.Reward, coinInfoResponse.Unit) @coinInfoResponse.Ticker</TableRowCell>
-						</TableRow>
+                        <TableRow>
+                            <TableRowHeader>Date & Time</TableRowHeader>
+                            <TableRowCell>@DateTimeOffset.FromUnixTimeSeconds(Convert.ToInt64(_blockInfoResponse.Timestamp)).LocalDateTime</TableRowCell>
+                            <TableRowHeader>Reward</TableRowHeader>
+                            <TableRowCell>@DaemonUtility.FormatAtomicUnit(_blockInfoResponse.Reward, _coinInfoResponse.Unit) @_coinInfoResponse.Ticker</TableRowCell>
+                        </TableRow>
 
-						<TableRow>
-							<TableRowHeader>Version</TableRowHeader>
-							<TableRowCell>@blockInfoResponse.Version</TableRowCell>
-							<TableRowHeader>Transactions Size</TableRowHeader>
-							<TableRowCell>@blockInfoResponse.TxSize.ToString("N0") bytes</TableRowCell>
-						</TableRow>
+                        <TableRow>
+                            <TableRowHeader>Version</TableRowHeader>
+                            <TableRowCell>@_blockInfoResponse.Version</TableRowCell>
+                            <TableRowHeader>Transactions Size</TableRowHeader>
+                            <TableRowCell>@_blockInfoResponse.TxSize.ToString("N0") bytes</TableRowCell>
+                        </TableRow>
 
-						<TableRow>
-							<TableRowHeader>Difficulty</TableRowHeader>
-							<TableRowCell>@blockInfoResponse.Difficulty.ToString("N0")</TableRowCell>
-							<TableRowHeader>Transaction Fees</TableRowHeader>
-							<TableRowCell>@DaemonUtility.FormatAtomicUnit(blockInfoResponse.TxFee, coinInfoResponse.Unit) @coinInfoResponse.Ticker</TableRowCell>
-						</TableRow>
+                        <TableRow>
+                            <TableRowHeader>Difficulty</TableRowHeader>
+                            <TableRowCell>@_blockInfoResponse.Difficulty.ToString("N0")</TableRowCell>
+                            <TableRowHeader>Transaction Fees</TableRowHeader>
+                            <TableRowCell>@DaemonUtility.FormatAtomicUnit(_blockInfoResponse.TxFee, _coinInfoResponse.Unit) @_coinInfoResponse.Ticker</TableRowCell>
+                        </TableRow>
 
-						<TableRow>
-							<TableRowHeader>Nonce</TableRowHeader>
-							<TableRowCell>@blockInfoResponse.Nonce.ToString("N0")</TableRowCell>
-							<TableRowHeader>Prev. Block</TableRowHeader>
-							<TableRowCell><Anchor To="@($"block/{blockInfoResponse.PreviousBlockHash}")" TextColor="TextColor.Primary">@blockInfoResponse.PreviousBlockHash</Anchor></TableRowCell>
-						</TableRow>
-						
-						<TableRow>
-							<TableRowHeader>Service Node Winner</TableRowHeader>
-							<TableRowCell ColumnSpan="3">@blockInfoResponse.ServiceNodeWinner</TableRowCell>
-						</TableRow>
-					</TableBody>
-				</Table>
-			</CardBody>
-		</Card>
-	</Column>
+                        <TableRow>
+                            <TableRowHeader>Nonce</TableRowHeader>
+                            <TableRowCell>@_blockInfoResponse.Nonce.ToString("N0")</TableRowCell>
+                            <TableRowHeader>Prev. Block</TableRowHeader>
+                            <TableRowCell>
+                                <Anchor To="@($"block/{_blockInfoResponse.PreviousBlockHash}")" TextColor="TextColor.Primary">@_blockInfoResponse.PreviousBlockHash</Anchor>
+                            </TableRowCell>
+                        </TableRow>
+
+                        <TableRow>
+                            <TableRowHeader>Service Node Winner</TableRowHeader>
+                            <TableRowCell ColumnSpan="3">@_blockInfoResponse.ServiceNodeWinner</TableRowCell>
+                        </TableRow>
+                    </TableBody>
+                </Table>
+            </CardBody>
+        </Card>
+    </Column>
 </Row>
 
 <Row Gutter="(16, 32)">
-	<Column ColumnSize="ColumnSize.Is12.OnDesktop">
-		<Card Background="Background.Primary">
-			<CardHeader TextColor="TextColor.Dark" TextWeight="TextWeight.Bold">Transaction <Badge Color="Color.Success">@blockInfoResponse.TransactionInfo.Count</Badge></CardHeader>
-			<CardBody>
-				<Table Narrow="true" Responsive="true">
-					<TableHeader>
-						<TableRow>
-							<TableRowHeader>HASH</TableRowHeader>
-							<TableRowHeader>FEE</TableRowHeader>
-							<TableRowHeader>TOTAL AMOUNT</TableRowHeader>
-							<TableRowHeader>SIZE</TableRowHeader>
-						</TableRow>
-					</TableHeader>
-					<TableBody>
-						@if (!blockInfoResponse.Success || blockInfoResponse.TransactionInfo.Count == 0)
-						{
-							<TableRow>
-								<TableRowCell ColumnSpan="4">There are no transactions in this block.</TableRowCell>
-							</TableRow>
-						}
-						else
-						{
-							@foreach (var transaction in blockInfoResponse.TransactionInfo)
-							{
-								<TableRow>
-									<TableRowCell>@transaction.Hash</TableRowCell>
-									<TableRowCell>@DaemonUtility.FormatAtomicUnit(transaction.Fee, coinInfoResponse.Unit)</TableRowCell>
-									<TableRowCell>@DaemonUtility.FormatAtomicUnit(transaction.TotalAmount, coinInfoResponse.Unit)</TableRowCell>
-									<TableRowCell>@transaction.Size.ToString("N0")</TableRowCell>
-								</TableRow>
-							}
-						}
-					</TableBody>
-				</Table>
-			</CardBody>
-		</Card>
-	</Column>
+    <Column ColumnSize="ColumnSize.Is12.OnDesktop">
+        <Card Background="Background.Primary">
+            <CardHeader TextColor="TextColor.Dark" TextWeight="TextWeight.Bold">Transaction <Badge Color="Color.Success">@_blockInfoResponse.TransactionInfo.Count</Badge></CardHeader>
+            <CardBody>
+                <Table Narrow="true" Responsive="true">
+                    <TableHeader>
+                        <TableRow>
+                            <TableRowHeader>HASH</TableRowHeader>
+                            <TableRowHeader>FEE</TableRowHeader>
+                            <TableRowHeader>TOTAL AMOUNT</TableRowHeader>
+                            <TableRowHeader>SIZE</TableRowHeader>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        @if (!_blockInfoResponse.Success || _blockInfoResponse.TransactionInfo.Count == 0)
+                        {
+                            <TableRow>
+                                <TableRowCell ColumnSpan="4">There are no transactions in this block.</TableRowCell>
+                            </TableRow>
+                        }
+                        else
+                        {
+                            @foreach (var transaction in _blockInfoResponse.TransactionInfo)
+                            {
+                                <TableRow>
+                                    <TableRowCell>@transaction.Hash</TableRowCell>
+                                    <TableRowCell>@DaemonUtility.FormatAtomicUnit(transaction.Fee, _coinInfoResponse.Unit)</TableRowCell>
+                                    <TableRowCell>@DaemonUtility.FormatAtomicUnit(transaction.TotalAmount, _coinInfoResponse.Unit)</TableRowCell>
+                                    <TableRowCell>@transaction.Size.ToString("N0")</TableRowCell>
+                                </TableRow>
+                            }
+                        }
+                    </TableBody>
+                </Table>
+            </CardBody>
+        </Card>
+    </Column>
 </Row>
 
 @code
 {
-	[Parameter]
-	public string Hash { get; set; } = string.Empty;
+    [Parameter]
+    public string Hash { get; set; } = string.Empty;
 
-	private GetCoinInfoResponse coinInfoResponse = new() { Success = false };
-	private GetBlockInfoResponse blockInfoResponse = new() { Success = false };
+    private GetCoinInfoResponse _coinInfoResponse = new() { Success = false };
+    private GetBlockInfoResponse _blockInfoResponse = new() { Success = false };
 
-	protected override async Task OnParametersSetAsync()
-	{
-		await pageProgressService.Go(null, options => options.Color = Color.Success);
+    protected override async Task OnParametersSetAsync()
+    {
+        await PageProgressService.Go(null, options => options.Color = Color.Success);
 
-		coinInfoResponse = await daemonClient.GetCoinInfoAsync(new NoParametersRequest());
+        _coinInfoResponse = await DaemonClient.GetCoinInfoAsync(new NoParametersRequest());
 
-		var request = ulong.TryParse(Hash, NumberStyles.Integer, null, out var height) ? new GetBlockInfoRequest { Height = height } : new GetBlockInfoRequest { Hash = Hash };
-		blockInfoResponse = await daemonClient.GetBlockInfoAsync(request);
+        var request = ulong.TryParse(Hash, NumberStyles.Integer, null, out var height) ? new GetBlockInfoRequest { Height = height } : new GetBlockInfoRequest { Hash = Hash };
+        _blockInfoResponse = await DaemonClient.GetBlockInfoAsync(request);
 
-		await pageProgressService.Go(-1);
-		await InvokeAsync(StateHasChanged);
-	}
+        await PageProgressService.Go(-1);
+        await InvokeAsync(StateHasChanged);
+    }
 }

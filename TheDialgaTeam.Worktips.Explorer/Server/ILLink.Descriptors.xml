@@ -1,0 +1,7 @@
+﻿<linker>
+    <assembly fullname="TheDialgaTeam.Worktips.Explorer.Server">
+        <type fullname="TheDialgaTeam.Worktips.Explorer.Server.Options.*" preserve="all"/>
+        <type fullname="TheDialgaTeam.Worktips.Explorer.Server.Database.Tables.*" preserve="all"/>
+        <type fullname="TheDialgaTeam.Worktips.Explorer.Server.Migrations.*" preserve="all"/>
+    </assembly>
+</linker>

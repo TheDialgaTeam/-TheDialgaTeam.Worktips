@@ -7,11 +7,11 @@ public partial class TransactionModelContext : JsonSerializerContext
 {
 }
 
-public class TransactionModel
+public sealed class TransactionModel
 {
-    public class TransactionModel_Vin
+    public sealed class TransactionModel_Vin
     {
-        public class Vin_Key
+        public sealed class Vin_Key
         {
             [JsonPropertyName("amount")]
             public ulong Amount { get; set; }
@@ -27,9 +27,9 @@ public class TransactionModel
         public Vin_Key Key { get; set; } = null!;
     }
 
-    public class TransactionModel_Vout
+    public sealed class TransactionModel_Vout
     {
-        public class Vout_Target
+        public sealed class Vout_Target
         {
             [JsonPropertyName("key")]
             public string Key { get; set; } = null!;
@@ -42,9 +42,9 @@ public class TransactionModel
         public Vout_Target Target { get; set; } = null!;
     }
 
-    public class TransactionModel_RingSignatures
+    public sealed class TransactionModel_RingSignatures
     {
-        public class RingSignatures_EcdhInfo
+        public sealed class RingSignatures_EcdhInfo
         {
             public string Amount { get; set; } = null!;
         }

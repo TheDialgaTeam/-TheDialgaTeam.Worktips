@@ -1,8 +1,12 @@
-﻿namespace TheDialgaTeam.Worktips.Explorer.Server.Options.Blockchain;
+﻿using JetBrains.Annotations;
 
-public class TargetNetwork
+namespace TheDialgaTeam.Worktips.Explorer.Server.Options.Blockchain;
+
+public sealed class TargetNetwork
 {
-    public string Host { get; set; } = null!;
+    [UsedImplicitly(ImplicitUseKindFlags.Assign)]
+    public string Host { get; init; } = "127.0.0.1";
 
-    public int Port { get; set; }
+    [UsedImplicitly(ImplicitUseKindFlags.Assign)]
+    public int Port { get; init; }
 }

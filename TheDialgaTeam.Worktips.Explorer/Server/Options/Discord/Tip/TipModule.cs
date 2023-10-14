@@ -1,8 +1,12 @@
-﻿namespace TheDialgaTeam.Worktips.Explorer.Server.Options.Discord.Tip;
+﻿using JetBrains.Annotations;
 
-public class TipModule
+namespace TheDialgaTeam.Worktips.Explorer.Server.Options.Discord.Tip;
+
+public sealed class TipModule
 {
-    public ulong TipMinimumAmount { get; set; }
+    [UsedImplicitly(ImplicitUseKindFlags.Assign)]
+    public ulong TipMinimumAmount { get; init; }
 
-    public ulong WithdrawMinimumAmount { get; set; }
+    [UsedImplicitly(ImplicitUseKindFlags.Assign)]
+    public ulong WithdrawMinimumAmount { get; init; }
 }

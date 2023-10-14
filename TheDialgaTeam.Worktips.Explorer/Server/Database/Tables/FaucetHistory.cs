@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace TheDialgaTeam.Worktips.Explorer.Server.Database.Tables;
 
-public class FaucetHistory
+public sealed class FaucetHistory
 {
     [Key]
     [DatabaseGenerated(DatabaseGeneratedOption.None)]

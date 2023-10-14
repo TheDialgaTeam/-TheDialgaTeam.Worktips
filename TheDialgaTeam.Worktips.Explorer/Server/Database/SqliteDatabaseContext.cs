@@ -3,7 +3,7 @@ using TheDialgaTeam.Worktips.Explorer.Server.Database.Tables;
 
 namespace TheDialgaTeam.Worktips.Explorer.Server.Database;
 
-public class SqliteDatabaseContext : DbContext
+public sealed class SqliteDatabaseContext : DbContext
 {
     public DbSet<WalletAccount> WalletAccounts { get; set; } = null!;
 
@@ -17,8 +17,6 @@ public class SqliteDatabaseContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<DaemonSyncHistory>().Property(typeof(int), "Id");
-        modelBuilder.Entity<DaemonSyncHistory>().HasKey("Id");
         modelBuilder.Entity<DaemonSyncHistory>().HasData(new
         {
             Id = 1,

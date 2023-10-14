@@ -1,33 +1,30 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-	<PropertyGroup>
-		<TargetFramework>net6.0</TargetFramework>
-		<Nullable>enable</Nullable>
-		<ImplicitUsings>enable</ImplicitUsings>
-	</PropertyGroup>
+    <PropertyGroup>
+        <TargetFramework>net7.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+    </PropertyGroup>
 
-	<PropertyGroup Condition="'$(Configuration)'=='Debug'">
-		<DefineConstants>DEBUG</DefineConstants>
-		<Optimize>false</Optimize>
-		<DebugType>embedded</DebugType>
-	</PropertyGroup>
+    <PropertyGroup Condition="'$(Configuration)'=='Debug'">
+        <DebugType>embedded</DebugType>
+    </PropertyGroup>
 
-	<PropertyGroup Condition="'$(Configuration)'=='Release'">
-		<Optimize>true</Optimize>
-		<DebugType>none</DebugType>
-	</PropertyGroup>
+    <PropertyGroup Condition="'$(Configuration)'=='Release'">
+        <DebugType>none</DebugType>
+    </PropertyGroup>
 
-	<ItemGroup>
-		<PackageReference Include="Google.Protobuf" Version="3.19.1" />
-		<PackageReference Include="Grpc.Net.Client" Version="2.41.0-pre1" />
-		<PackageReference Include="Grpc.Tools" Version="2.42.0">
-			<PrivateAssets>all</PrivateAssets>
-			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-		</PackageReference>
-	</ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="Google.Protobuf" Version="3.24.4" />
+        <PackageReference Include="Grpc.Net.Client" Version="2.57.0" />
+        <PackageReference Include="Grpc.Tools" Version="2.58.0">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+    </ItemGroup>
 
-	<ItemGroup>
-		<SupportedPlatform Include="browser" />
-		<Protobuf Include="**/*.proto" />
-	</ItemGroup>
+    <ItemGroup>
+        <SupportedPlatform Include="browser"/>
+        <Protobuf Include="**/*.proto"/>
+    </ItemGroup>
 </Project>

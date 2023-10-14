@@ -1,16 +1,22 @@
-﻿using TheDialgaTeam.Worktips.Explorer.Server.Options.Blockchain;
+﻿using JetBrains.Annotations;
+using TheDialgaTeam.Worktips.Explorer.Server.Options.Blockchain;
 
 namespace TheDialgaTeam.Worktips.Explorer.Server.Options;
 
-public class BlockchainOptions
+public sealed class BlockchainOptions
 {
-    public string CoinName { get; set; } = null!;
+    [UsedImplicitly(ImplicitUseKindFlags.Assign)]
+    public string CoinName { get; init; } = null!;
 
-    public string CoinTicker { get; set; } = null!;
+    [UsedImplicitly(ImplicitUseKindFlags.Assign)]
+    public string CoinTicker { get; init; } = null!;
 
-    public ulong CoinUnit { get; set; }
+    [UsedImplicitly(ImplicitUseKindFlags.Assign)]
+    public ulong CoinUnit { get; init; }
 
-    public ulong CoinMaxSupply { get; set; }
+    [UsedImplicitly(ImplicitUseKindFlags.Assign)]
+    public ulong CoinMaxSupply { get; init; }
 
-    public Rpc Rpc { get; set; } = null!;
+    [UsedImplicitly(ImplicitUseKindFlags.Assign)]
+    public Rpc Rpc { get; init; } = null!;
 }

@@ -1,11 +1,14 @@
-﻿using TheDialgaTeam.Worktips.Explorer.Server.Options.Discord.Faucet;
+﻿using JetBrains.Annotations;
+using TheDialgaTeam.Worktips.Explorer.Server.Options.Discord.Faucet;
 using TheDialgaTeam.Worktips.Explorer.Server.Options.Discord.Tip;
 
 namespace TheDialgaTeam.Worktips.Explorer.Server.Options.Discord;
 
-public class Modules
+public sealed class Modules
 {
-    public TipModule Tip { get; set; } = null!;
+    [UsedImplicitly(ImplicitUseKindFlags.Assign)]
+    public TipModule Tip { get; init; } = null!;
 
-    public FaucetModule Faucet { get; set; } = null!;
+    [UsedImplicitly(ImplicitUseKindFlags.Assign)]
+    public FaucetModule Faucet { get; init; } = null!;
 }

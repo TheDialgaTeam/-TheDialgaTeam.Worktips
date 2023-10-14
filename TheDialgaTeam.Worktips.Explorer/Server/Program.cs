@@ -1,16 +1,13 @@
-using System.Diagnostics.CodeAnalysis;
 using Discord;
-using Discord.Commands;
+using Discord.Interactions;
 using Discord.WebSocket;
-using JetBrains.Annotations;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
-using Serilog;
-using TheDialgaTeam.Core.Logger.Extensions.Logging;
-using TheDialgaTeam.Core.Logger.Serilog.Formatting.Ansi;
-using TheDialgaTeam.Core.Logger.Serilog.Sinks;
+using Microsoft.Extensions.Options;
+using TheDialgaTeam.Core.Logging.Microsoft;
 using TheDialgaTeam.Cryptonote.Rpc.Worktips;
 using TheDialgaTeam.Worktips.Explorer.Server.Database;
-using TheDialgaTeam.Worktips.Explorer.Server.Discord.Command;
+using TheDialgaTeam.Worktips.Explorer.Server.Grpc;
 using TheDialgaTeam.Worktips.Explorer.Server.Options;
 using TheDialgaTeam.Worktips.Explorer.Server.Services;
 
@@ -18,72 +15,75 @@ namespace TheDialgaTeam.Worktips.Explorer.Server;
 
 public static class Program
 {
-    /// <summary>
-    /// FIXME: This is required for EF Core 6.0 as it is not compatible with trimming.
-    /// </summary>
-    [UsedImplicitly]
-    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
-    private static readonly Type DateOnly = typeof(DateOnly);
-
     public static void Main(string[] args)
     {
-        try
+        AppDomain.CurrentDomain.UnhandledException += OnCurrentDomainOnUnhandledException;
+
+        var builder = WebApplication.CreateBuilder(args);
+
+        builder.Services.AddOptions<DiscordOptions>().BindConfiguration("Discord", options => options.BindNonPublicProperties = true);
+        builder.Services.AddOptions<BlockchainOptions>().BindConfiguration("Blockchain", options => options.BindNonPublicProperties = true);
+
+        builder.Services.AddDbContextFactory<SqliteDatabaseContext>(optionsBuilder => { optionsBuilder.UseSqlite($"Data Source={Path.Combine(builder.Environment.ContentRootPath, "data.db")}"); });
+
+        builder.Services.AddGrpc();
+
+        builder.Services.AddSingleton(service =>
         {
-            CreateHostBuilder(args).Build().Run();
-        }
-        catch (Exception e)
+            var options = service.GetRequiredService<IOptions<BlockchainOptions>>();
+            return new DaemonRpcClient(options.Value.Rpc.Daemon.Host, options.Value.Rpc.Daemon.Port);
+        });
+
+        builder.Services.AddSingleton(service =>
         {
-            Console.WriteLine(e);
-            Console.ReadLine();
+            var options = service.GetRequiredService<IOptions<BlockchainOptions>>();
+            return new WalletRpcClient(options.Value.Rpc.Wallet.Host, options.Value.Rpc.Wallet.Port);
+        });
+
+        builder.Services.AddSingleton(_ => new DiscordShardedClient(new DiscordSocketConfig { GatewayIntents = GatewayIntents.GuildMembers }));
+        builder.Services.AddSingleton(service => new InteractionService(service.GetRequiredService<DiscordShardedClient>()));
+
+        builder.Services.AddSingleton<HttpClient>();
+        
+        builder.Services.AddHostedService<DaemonHostedService>();
+        builder.Services.AddHostedService<WalletHostedService>();
+        builder.Services.AddHostedService<DiscordHostedService>();
+
+        builder.Logging.AddLoggerTemplateFormatter(options => { options.SetDefaultTemplate(formattingBuilder => formattingBuilder.SetGlobal(messageFormattingBuilder => messageFormattingBuilder.SetPrefix((in LoggerTemplateEntry _) => $"{AnsiEscapeCodeConstants.DarkGrayForegroundColor}{DateTime.Now:yyyy-MM-dd HH:mm:ss}{AnsiEscapeCodeConstants.Reset} "))); });
+
+        var app = builder.Build();
+
+        if (app.Environment.IsDevelopment())
+        {
+            app.UseWebAssemblyDebugging();
         }
+        else
+        {
+            app.UseHsts();
+        }
+
+        app.UseForwardedHeaders(new ForwardedHeadersOptions
+        {
+            ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+        });
+
+        app.UseHttpsRedirection();
+        app.UseBlazorFrameworkFiles();
+        app.UseStaticFiles();
+
+        app.UseRouting();
+        app.UseGrpcWeb(new GrpcWebOptions { DefaultEnabled = true });
+        app.MapGrpcService<DaemonService>();
+        app.MapFallbackToFile("index.html");
+
+        app.Run();
     }
 
-    private static IHostBuilder CreateHostBuilder(string[] args)
+    private static void OnCurrentDomainOnUnhandledException(object _, UnhandledExceptionEventArgs eventArgs)
     {
-        return Host.CreateDefaultBuilder(args)
-            .ConfigureServices((hostBuilderContext, serviceCollection) =>
-            {
-                // Options
-                serviceCollection.Configure<DiscordOptions>(hostBuilderContext.Configuration.GetSection("Discord"));
-                serviceCollection.Configure<BlockchainOptions>(hostBuilderContext.Configuration.GetSection("Blockchain"));
+        if (!eventArgs.IsTerminating) return;
 
-                // Database
-                serviceCollection.AddDbContextFactory<SqliteDatabaseContext>(builder => { builder.UseSqlite($"Data Source={Path.Combine(hostBuilderContext.HostingEnvironment.ContentRootPath, "data.db")}"); });
-                serviceCollection.AddHostedService<SqliteDatabaseHostedService>();
-
-                // Logger
-                serviceCollection.AddLoggingTemplate(new LoggerTemplateConfiguration(configuration =>
-                {
-                    configuration.Global.DefaultPrefixTemplate = $"{AnsiEscapeCodeConstants.DarkGrayForegroundColor}{{DateTimeOffset:yyyy-MM-dd HH:mm:ss}}{AnsiEscapeCodeConstants.Reset} ";
-                    configuration.Global.DefaultPrefixTemplateArgs = () => new object[] { DateTimeOffset.Now };
-                }));
-
-                // Discord
-                serviceCollection.AddSingleton(_ => new DiscordShardedClient(new DiscordSocketConfig
-                {
-                    LogLevel = LogSeverity.Verbose,
-                    RateLimitPrecision = RateLimitPrecision.Millisecond
-                }));
-                serviceCollection.AddSingleton(_ =>
-                {
-                    var commandService = new CommandService(new CommandServiceConfig { CaseSensitiveCommands = false, IgnoreExtraArgs = true, ThrowOnError = true });
-                    commandService.AddTypeReader<IEmote>(new EmoteTypeReader());
-                    return commandService;
-                });
-                serviceCollection.AddHostedService<DiscordHostedService>();
-
-                // Rpc
-                serviceCollection.AddSingleton(_ => new DaemonRpcClient(hostBuilderContext.Configuration["Blockchain:Rpc:Daemon:Host"], int.Parse(hostBuilderContext.Configuration["Blockchain:Rpc:Daemon:Port"])));
-                serviceCollection.AddSingleton(_ => new WalletRpcClient(hostBuilderContext.Configuration["Blockchain:Rpc:Wallet:Host"], int.Parse(hostBuilderContext.Configuration["Blockchain:Rpc:Wallet:Port"])));
-                serviceCollection.AddHostedService<DaemonHostedService>();
-                serviceCollection.AddHostedService<WalletHostedService>();
-            })
-            .UseSerilog((hostBuilderContext, loggerConfiguration) =>
-            {
-                loggerConfiguration
-                    .ReadFrom.Configuration(hostBuilderContext.Configuration)
-                    .WriteTo.AnsiConsole(new AnsiOutputTemplateTextFormatter("{Message}{NewLine}{Exception}"));
-            })
-            .ConfigureWebHostDefaults(webHostBuilder => webHostBuilder.UseStartup<Startup>());
+        var crashFileLocation = Path.Combine(AppContext.BaseDirectory, $"{DateTime.Now:yyyy-MM-dd-HH-mm-ss}_crash.log");
+        File.WriteAllText(crashFileLocation, eventArgs.ExceptionObject.ToString());
     }
 }

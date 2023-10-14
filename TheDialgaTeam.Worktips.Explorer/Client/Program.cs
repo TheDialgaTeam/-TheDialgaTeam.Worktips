@@ -14,7 +14,7 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 
 builder.Services.AddBlazorise(options =>
 {
-    options.ChangeTextOnKeyPress = true;
+    options.Immediate = true;
 });
 builder.Services.AddBootstrap5Providers();
 builder.Services.AddFontAwesomeIcons();

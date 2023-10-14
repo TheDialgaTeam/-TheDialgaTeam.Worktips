@@ -1,32 +1,31 @@
 <Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
 
-	<PropertyGroup>
-		<TargetFramework>net6.0</TargetFramework>
-		<Nullable>enable</Nullable>
-		<ImplicitUsings>enable</ImplicitUsings>
-	</PropertyGroup>
+    <PropertyGroup>
+        <TargetFramework>net7.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+    </PropertyGroup>
 
-	<PropertyGroup Condition="'$(Configuration)'=='Debug'">
-		<DefineConstants>DEBUG</DefineConstants>
-		<Optimize>false</Optimize>
-		<DebugType>embedded</DebugType>
-	</PropertyGroup>
+    <PropertyGroup Condition="'$(Configuration)'=='Debug'">
+        <Optimize>false</Optimize>
+        <DebugType>embedded</DebugType>
+    </PropertyGroup>
 
-	<PropertyGroup Condition="'$(Configuration)'=='Release'">
-		<Optimize>true</Optimize>
-		<DebugType>none</DebugType>
-	</PropertyGroup>
+    <PropertyGroup Condition="'$(Configuration)'=='Release'">
+        <Optimize>true</Optimize>
+        <DebugType>none</DebugType>
+    </PropertyGroup>
 
-	<ItemGroup>
-		<PackageReference Include="Blazorise.Bootstrap5" Version="0.9.5.1" />
-		<PackageReference Include="Blazorise.Icons.FontAwesome" Version="0.9.5.1" />
-		<PackageReference Include="Grpc.Net.Client.Web" Version="2.41.0-pre1" />
-		<PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="6.0.0" />
-		<PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="6.0.0" PrivateAssets="all" />
-	</ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="Blazorise.Bootstrap5" Version="1.2.3"/>
+        <PackageReference Include="Blazorise.Icons.FontAwesome" Version="1.2.3"/>
+        <PackageReference Include="Grpc.Net.Client.Web" Version="2.57.0" />
+        <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="7.0.12" />
+        <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="7.0.12" PrivateAssets="all" />
+    </ItemGroup>
 
-	<ItemGroup>
-		<ProjectReference Include="..\Shared\TheDialgaTeam.Worktips.Explorer.Shared.csproj" />
-	</ItemGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\Shared\TheDialgaTeam.Worktips.Explorer.Shared.csproj"/>
+    </ItemGroup>
 
 </Project>

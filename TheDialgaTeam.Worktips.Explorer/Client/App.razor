@@ -12,11 +12,11 @@
 		</NotFound>
 	</Router>
 	
-	<PageProgressAlert />
+	<PageProgressProvider />
 </Blazorise.ThemeProvider>
 
-@code{
-
+@code
+{
 	private readonly Theme _theme = new()
 	{
 		BodyOptions = new ThemeBodyOptions
@@ -37,5 +37,4 @@
 			Dark = "#222222"
 		},
 	};
-
 }

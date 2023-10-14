@@ -1,139 +1,99 @@
 ﻿using Discord;
-using Discord.Commands;
+using Discord.Interactions;
 using Discord.WebSocket;
 using Microsoft.Extensions.Options;
-using TheDialgaTeam.Core.Logger.Extensions.Logging;
 using TheDialgaTeam.Worktips.Explorer.Server.Discord.Modules;
 using TheDialgaTeam.Worktips.Explorer.Server.Options;
+using IResult = Discord.Interactions.IResult;
 
 namespace TheDialgaTeam.Worktips.Explorer.Server.Services;
 
-public class DiscordHostedService : IHostedService, IDisposable
+public sealed class DiscordHostedService : IHostedService
 {
-    private readonly DiscordShardedClient _discordShardedClient;
-    private readonly CommandService _commandService;
     private readonly IServiceProvider _serviceProvider;
-    private readonly ILoggerTemplate<DiscordHostedService> _logger;
-    private readonly IOptionsMonitor<DiscordOptions> _optionsMonitor;
-
-    public DiscordHostedService(DiscordShardedClient discordShardedClient, CommandService commandService, IServiceProvider serviceProvider, ILoggerTemplate<DiscordHostedService> logger, IOptionsMonitor<DiscordOptions> optionsMonitor)
+    private readonly ILogger<DiscordHostedService> _logger;
+    private readonly DiscordOptions _discordOptions;
+    private readonly DiscordShardedClient _discordShardedClient;
+    private readonly InteractionService _interactionService;
+    
+    public DiscordHostedService(IServiceProvider serviceProvider, ILogger<DiscordHostedService> logger, IOptions<DiscordOptions> options, DiscordShardedClient discordShardedClient, InteractionService interactionService)
     {
-        _discordShardedClient = discordShardedClient;
-        _commandService = commandService;
         _serviceProvider = serviceProvider;
         _logger = logger;
-        _optionsMonitor = optionsMonitor;
+        _discordOptions = options.Value;
+        _discordShardedClient = discordShardedClient;
+        _interactionService = interactionService;
+    }
+
+    private async Task InteractionServiceOnInteractionExecuted(ICommandInfo command, IInteractionContext context, IResult result)
+    {
+        if (result.IsSuccess) return;
+        
+        var embed = new EmbedBuilder()
+            .WithColor(Color.Red)
+            .WithTitle("Oops, this command resulted in an error:")
+            .WithDescription(result.ErrorReason);
+        
+        if (context.Interaction.HasResponded)
+        {
+            await context.Interaction.FollowupAsync(embed: embed.Build()).ConfigureAwait(false);
+        }
+        else
+        {
+            await context.Interaction.RespondAsync(embed: embed.Build()).ConfigureAwait(false);
+        }
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        var discordOptions = _optionsMonitor.CurrentValue;
+        if (string.IsNullOrEmpty(_discordOptions.BotToken)) return;
 
-        await _discordShardedClient.LoginAsync(TokenType.Bot, discordOptions.BotToken);
-        await _discordShardedClient.StartAsync();
-
-        _discordShardedClient.Log += DiscordShardedClientOnLog;
+        await _discordShardedClient.LoginAsync(TokenType.Bot, _discordOptions.BotToken).ConfigureAwait(false);
+        await _discordShardedClient.StartAsync().ConfigureAwait(false);
+        
         _discordShardedClient.ShardReady += DiscordShardedClientOnShardReady;
-        _discordShardedClient.MessageReceived += DiscordShardedClientOnMessageReceived;
-
-        await _commandService.AddModuleAsync<BaseModule>(_serviceProvider);
-        await _commandService.AddModuleAsync<DaemonModule>(_serviceProvider);
-        await _commandService.AddModuleAsync<WalletModule>(_serviceProvider);
-        await _commandService.AddModuleAsync<FaucetModule>(_serviceProvider);
-        await _commandService.AddModuleAsync<ExchangeModule>(_serviceProvider);
-        await _commandService.AddModuleAsync<HelpModule>(_serviceProvider);
+        _discordShardedClient.InteractionCreated += DiscordShardedClientOnInteractionCreated;
+        _interactionService.InteractionExecuted += InteractionServiceOnInteractionExecuted;
+        
+        await _interactionService.AddModuleAsync<BaseModule>(_serviceProvider).ConfigureAwait(false);
+        await _interactionService.AddModuleAsync<DaemonModule>(_serviceProvider).ConfigureAwait(false);
+        await _interactionService.AddModuleAsync<ExchangeModule>(_serviceProvider).ConfigureAwait(false);
+        await _interactionService.AddModuleAsync<WalletModule>(_serviceProvider).ConfigureAwait(false);
+        await _interactionService.AddModuleAsync<FaucetModule>(_serviceProvider).ConfigureAwait(false);
     }
 
     public async Task StopAsync(CancellationToken cancellationToken)
     {
-        await _discordShardedClient.StopAsync();
-        await _discordShardedClient.LogoutAsync();
+        if (string.IsNullOrEmpty(_discordOptions.BotToken)) return;
 
-        _discordShardedClient.Log -= DiscordShardedClientOnLog;
+        await _discordShardedClient.StopAsync().ConfigureAwait(false);
+        await _discordShardedClient.LogoutAsync().ConfigureAwait(false);
+
         _discordShardedClient.ShardReady -= DiscordShardedClientOnShardReady;
-        _discordShardedClient.MessageReceived -= DiscordShardedClientOnMessageReceived;
-    }
-
-    private Task DiscordShardedClientOnLog(LogMessage logMessage)
-    {
-        var botId = _discordShardedClient.CurrentUser?.Id;
-        var botName = _discordShardedClient.CurrentUser?.ToString();
-        var message = _discordShardedClient.CurrentUser == null ? $"[Bot] {logMessage.Source,-12} {logMessage.Message}" : $"[Bot] {botName} ({botId}): {logMessage.Source,-12} {logMessage.Message}";
-
-        switch (logMessage.Severity)
-        {
-            case LogSeverity.Verbose:
-                _logger.LogTrace(message, true);
-                break;
-
-            case LogSeverity.Debug:
-                _logger.LogDebug(message, true);
-                break;
-
-            case LogSeverity.Info:
-                _logger.LogInformation(message, true);
-                break;
-
-            case LogSeverity.Warning:
-                _logger.LogWarning(message, true);
-                break;
-
-            case LogSeverity.Error:
-                _logger.LogError(logMessage.Exception, message, true);
-                break;
-
-            case LogSeverity.Critical:
-                _logger.LogCritical(logMessage.Exception, message, true);
-                break;
-
-            default:
-                throw new ArgumentOutOfRangeException();
-        }
-
-        return Task.CompletedTask;
+        _discordShardedClient.InteractionCreated -= DiscordShardedClientOnInteractionCreated;
+        _interactionService.InteractionExecuted -= InteractionServiceOnInteractionExecuted;
     }
 
     private async Task DiscordShardedClientOnShardReady(DiscordSocketClient discordSocketClient)
     {
-        var currentUser = discordSocketClient.CurrentUser;
-        await discordSocketClient.SetGameAsync($"{currentUser.Username} help");
-
-        _logger.LogInformation("[Bot] {Username:l} ({Id}): \u001b[32;1mShard {CurrentShard}/{TotalShard} is ready!\u001b[0m", true, currentUser.ToString(), currentUser.Id, discordSocketClient.ShardId + 1, _discordShardedClient.Shards.Count);
-    }
-
-    private Task DiscordShardedClientOnMessageReceived(SocketMessage socketMessage)
-    {
-        return Task.Run(async () =>
+#if DEBUG
+        foreach (var guild in discordSocketClient.Guilds)
         {
-            if (socketMessage is SocketUserMessage socketUserMessage)
-            {
-                var context = new ShardedCommandContext(_discordShardedClient, socketUserMessage);
-                var argPos = 0;
-                var discordOptions = _optionsMonitor.CurrentValue;
+            await _interactionService.RegisterCommandsToGuildAsync(guild.Id).ConfigureAwait(false);
+        }
+#else
+        foreach (var guild in discordSocketClient.Guilds)
+        {
+            await _interactionService.RemoveModulesFromGuildAsync(guild.Id, _interactionService.Modules.ToArray()).ConfigureAwait(false);
+        }
 
-                if (socketUserMessage.Channel is SocketDMChannel)
-                {
-                    if (socketUserMessage.HasMentionPrefix(_discordShardedClient.CurrentUser, ref argPos) ||
-                        socketUserMessage.HasStringPrefix(discordOptions.BotPrefix, ref argPos, StringComparison.OrdinalIgnoreCase))
-                    {
-                    }
-                }
-                else
-                {
-                    if (!socketUserMessage.HasMentionPrefix(_discordShardedClient.CurrentUser, ref argPos) &&
-                        !socketUserMessage.HasStringPrefix(discordOptions.BotPrefix, ref argPos, StringComparison.OrdinalIgnoreCase))
-                    {
-                        return;
-                    }
-                }
-
-                await _commandService.ExecuteAsync(context, argPos, _serviceProvider);
-            }
-        });
+        await _interactionService.RegisterCommandsGloballyAsync().ConfigureAwait(false);
+#endif
     }
 
-    public void Dispose()
+    private async Task DiscordShardedClientOnInteractionCreated(SocketInteraction interaction)
     {
-        _discordShardedClient.Dispose();
+        var context = new ShardedInteractionContext(_discordShardedClient, interaction);
+        await _interactionService.ExecuteCommandAsync(context, _serviceProvider).ConfigureAwait(false);
     }
 }

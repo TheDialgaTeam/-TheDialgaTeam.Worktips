@@ -10,17 +10,17 @@ using TheDialgaTeam.Worktips.Explorer.Shared.Models;
 
 namespace TheDialgaTeam.Worktips.Explorer.Server.Grpc;
 
-public class DaemonService : Daemon.DaemonBase
+public sealed class DaemonService : Daemon.DaemonBase
 {
-    private readonly DaemonRpcClient _daemonRpcClient;
+    private readonly BlockchainOptions _blockchainOptions;
     private readonly IDbContextFactory<SqliteDatabaseContext> _dbContextFactory;
-    private readonly IOptionsSnapshot<BlockchainOptions> _blockchainOptions;
-
-    public DaemonService(DaemonRpcClient daemonRpcClient, IDbContextFactory<SqliteDatabaseContext> dbContextFactory, IOptionsSnapshot<BlockchainOptions> blockchainOptions)
+    private readonly DaemonRpcClient _daemonRpcClient;
+    
+    public DaemonService(IOptions<BlockchainOptions> blockchainOptions, IDbContextFactory<SqliteDatabaseContext> dbContextFactory, DaemonRpcClient daemonRpcClient)
     {
         _daemonRpcClient = daemonRpcClient;
         _dbContextFactory = dbContextFactory;
-        _blockchainOptions = blockchainOptions;
+        _blockchainOptions = blockchainOptions.Value;
     }
 
     public override Task<GetCoinInfoResponse> GetCoinInfo(NoParametersRequest request, ServerCallContext context)
@@ -28,8 +28,8 @@ public class DaemonService : Daemon.DaemonBase
         return Task.FromResult(new GetCoinInfoResponse
         {
             Success = true,
-            Ticker = _blockchainOptions.Value.CoinTicker,
-            Unit = _blockchainOptions.Value.CoinUnit
+            Ticker = _blockchainOptions.CoinTicker,
+            Unit = _blockchainOptions.CoinUnit
         });
     }
 
@@ -37,18 +37,18 @@ public class DaemonService : Daemon.DaemonBase
     {
         try
         {
-            var infoResponse = await _daemonRpcClient.GetInfoAsync();
+            var infoResponse = await _daemonRpcClient.GetInfoAsync().ConfigureAwait(false);
             if (infoResponse == null) return new GetCurrentDaemonInfoResponse { Success = false };
 
             var blockHeaderByHeightResponse = await _daemonRpcClient.GetBlockHeaderByHeightAsync(new CommandRpcGetBlockHeaderByHeight.Request
             {
-                Height = infoResponse.Height - 1, 
+                Height = infoResponse.Height - 1,
                 FillPowHash = false
-            });
+            }).ConfigureAwait(false);
             if (blockHeaderByHeightResponse == null) return new GetCurrentDaemonInfoResponse { Success = false };
 
-            await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
-            var daemonSyncHistory = await dbContext.DaemonSyncHistory.FirstAsync();
+            await using var dbContext = await _dbContextFactory.CreateDbContextAsync().ConfigureAwait(false);
+            var daemonSyncHistory = await dbContext.DaemonSyncHistory.SingleOrDefaultAsync().ConfigureAwait(false);
 
             return new GetCurrentDaemonInfoResponse
             {
@@ -58,9 +58,9 @@ public class DaemonService : Daemon.DaemonBase
                 NetworkHashRate = (double) infoResponse.Difficulty / infoResponse.Target,
                 BlockReward = blockHeaderByHeightResponse.BlockHeader.Reward,
                 TotalTransactions = infoResponse.TransactionCount,
-                CirculatingSupply = daemonSyncHistory.TotalCirculation,
-                TotalSupply = _blockchainOptions.Value.CoinMaxSupply,
-                CurrentEmission = (double) daemonSyncHistory.TotalCirculation / _blockchainOptions.Value.CoinMaxSupply
+                CirculatingSupply = daemonSyncHistory?.TotalCirculation ?? 0,
+                TotalSupply = _blockchainOptions.CoinMaxSupply,
+                CurrentEmission = (double) (daemonSyncHistory?.TotalCirculation ?? 0) / _blockchainOptions.CoinMaxSupply
             };
         }
         catch (Exception)
@@ -73,7 +73,7 @@ public class DaemonService : Daemon.DaemonBase
     {
         try
         {
-            var heightResponse = await _daemonRpcClient.GetHeightAsync();
+            var heightResponse = await _daemonRpcClient.GetHeightAsync().ConfigureAwait(false);
             if (heightResponse == null) return new GetChartDataResponse { Success = false };
 
             var targetHeight = heightResponse.Height - 1;
@@ -83,7 +83,7 @@ public class DaemonService : Daemon.DaemonBase
                 StartHeight = targetHeight - 49,
                 EndHeight = targetHeight,
                 FillPowHash = false
-            });
+            }).ConfigureAwait(false);
             if (response == null) return new GetChartDataResponse { Success = false };
 
             var chartData = new List<GetChartDataResponse.Types.ChartData>();
@@ -115,7 +115,7 @@ public class DaemonService : Daemon.DaemonBase
     {
         try
         {
-            var response = await _daemonRpcClient.GetTransactionPoolAsync();
+            var response = await _daemonRpcClient.GetTransactionPoolAsync().ConfigureAwait(false);
             if (response == null) return new GetTransactionPoolResponse { Success = false };
 
             var transactions = new List<GetTransactionPoolResponse.Types.Transaction>();
@@ -150,7 +150,7 @@ public class DaemonService : Daemon.DaemonBase
     {
         try
         {
-            var heightResponse = await _daemonRpcClient.GetHeightAsync();
+            var heightResponse = await _daemonRpcClient.GetHeightAsync().ConfigureAwait(false);
             if (heightResponse == null) return new GetRecentBlocksResponse { Success = false };
 
             var targetHeight = heightResponse.Height - 1;
@@ -160,7 +160,7 @@ public class DaemonService : Daemon.DaemonBase
                 StartHeight = targetHeight - 49,
                 EndHeight = targetHeight,
                 FillPowHash = false
-            });
+            }).ConfigureAwait(false);
             if (response == null) return new GetRecentBlocksResponse { Success = false };
 
             var blocks = new List<GetRecentBlocksResponse.Types.Block>();
@@ -210,7 +210,7 @@ public class DaemonService : Daemon.DaemonBase
                     return new GetBlockInfoResponse { Success = false };
             }
 
-            var response = await _daemonRpcClient.GetBlockAsync(commandRpcGetBlockRequest);
+            var response = await _daemonRpcClient.GetBlockAsync(commandRpcGetBlockRequest).ConfigureAwait(false);
             if (response == null) return new GetBlockInfoResponse { Success = false };
 
             var transactionsHashes = new List<string> { response.BlockHeader.MinerTransactionHash };
@@ -220,7 +220,7 @@ public class DaemonService : Daemon.DaemonBase
             {
                 TransactionHashes = transactionsHashes.ToArray(),
                 DecodeAsJson = true
-            });
+            }).ConfigureAwait(false);
             if (transactionResponse == null) return new GetBlockInfoResponse { Success = false };
 
             var txSize = 0.0;

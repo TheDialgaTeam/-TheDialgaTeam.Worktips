@@ -1,8 +1,12 @@
-﻿namespace TheDialgaTeam.Worktips.Explorer.Server.Options.Blockchain;
+﻿using JetBrains.Annotations;
 
-public class Rpc
+namespace TheDialgaTeam.Worktips.Explorer.Server.Options.Blockchain;
+
+public sealed class Rpc
 {
-    public TargetNetwork Daemon { get; set; } = null!;
+    [UsedImplicitly(ImplicitUseKindFlags.Assign)]
+    public TargetNetwork Daemon { get; init; } = null!;
 
-    public TargetNetwork Wallet { get; set; } = null!;
+    [UsedImplicitly(ImplicitUseKindFlags.Assign)]
+    public TargetNetwork Wallet { get; init; } = null!;
 }
