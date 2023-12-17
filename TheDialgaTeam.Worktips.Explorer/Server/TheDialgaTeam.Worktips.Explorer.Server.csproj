@@ -40,8 +40,6 @@
         <ProjectReference Include="..\Shared\TheDialgaTeam.Worktips.Explorer.Shared.csproj" />
         
         <TrimmerRootDescriptor Include="ILLink.Descriptors.xml" />
-
-        <Content Include="appsettings.Development.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Never" />
     </ItemGroup>
     
 </Project>

@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
@@ -15,6 +16,7 @@ namespace TheDialgaTeam.Worktips.Explorer.Server;
 
 public static class Program
 {
+    [RequiresUnreferencedCode("")]
     public static void Main(string[] args)
     {
         AppDomain.CurrentDomain.UnhandledException += OnCurrentDomainOnUnhandledException;
