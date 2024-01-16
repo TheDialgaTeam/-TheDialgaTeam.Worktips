@@ -1,20 +1,17 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
 using TheDialgaTeam.Worktips.Explorer.Server.Database.Tables;
 
 namespace TheDialgaTeam.Worktips.Explorer.Server.Database;
 
-public sealed class SqliteDatabaseContext : DbContext
+public sealed class SqliteDatabaseContext(IHostEnvironment hostEnvironment) : DbContext
 {
-    public DbSet<WalletAccount> WalletAccounts { get; set; } = null!;
+    public required DbSet<WalletAccount> WalletAccounts { get; set; }
 
-    public DbSet<FaucetHistory> FaucetHistories { get; set; } = null!;
+    public required DbSet<FaucetHistory> FaucetHistories { get; set; }
 
-    public DbSet<DaemonSyncHistory> DaemonSyncHistory { get; set; } = null!;
-
-    public SqliteDatabaseContext(DbContextOptions options) : base(options)
-    {
-    }
-
+    public required DbSet<DaemonSyncHistory> DaemonSyncHistory { get; set; }
+    
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<DaemonSyncHistory>().HasData(new
@@ -23,5 +20,15 @@ public sealed class SqliteDatabaseContext : DbContext
             BlockCount = 0ul,
             TotalCirculation = 0ul
         });
+    }
+
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        var builder = new SqliteConnectionStringBuilder
+        {
+            DataSource = Path.Combine(hostEnvironment.ContentRootPath, "data.db")
+        };
+        
+        optionsBuilder.UseSqlite(builder.ConnectionString);
     }
 }

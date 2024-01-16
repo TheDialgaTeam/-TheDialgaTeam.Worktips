@@ -11,7 +11,7 @@ public sealed class WalletAccount
 
     public uint AccountIndex { get; set; }
     
-    public string TipBotWalletAddress { get; set; } = null!;
+    public required string TipBotWalletAddress { get; set; }
     
     public string? RegisteredWalletAddress { get; set; }
 }

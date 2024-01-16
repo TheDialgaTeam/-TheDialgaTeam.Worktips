@@ -2,7 +2,7 @@
 
 namespace TheDialgaTeam.Worktips.Explorer.Server.Discord.Exchanges.TradeOgre;
 
-public class Ticker
+internal class Ticker
 {
     [JsonPropertyName("success")]
     public bool Success { get; set; }
@@ -37,6 +37,4 @@ public class Ticker
 }
 
 [JsonSerializable(typeof(Ticker), GenerationMode = JsonSourceGenerationMode.Metadata)]
-internal partial class TickerContext : JsonSerializerContext
-{
-}
+internal partial class TickerContext : JsonSerializerContext;

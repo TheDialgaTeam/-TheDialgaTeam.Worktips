@@ -12,7 +12,7 @@ using TheDialgaTeam.Worktips.Explorer.Shared;
 
 namespace TheDialgaTeam.Worktips.Explorer.Server.Discord.Modules;
 
-public sealed class FaucetModule : InteractionModuleBase<ShardedInteractionContext>
+internal sealed class FaucetModule : InteractionModuleBase<ShardedInteractionContext>
 {
     private readonly DiscordOptions _discordOptions;
     private readonly BlockchainOptions _blockchainOptions;

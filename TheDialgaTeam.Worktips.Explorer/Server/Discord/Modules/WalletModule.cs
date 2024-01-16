@@ -13,7 +13,7 @@ using TheDialgaTeam.Worktips.Explorer.Shared;
 namespace TheDialgaTeam.Worktips.Explorer.Server.Discord.Modules;
 
 [Group("wallet", "Wallet Module")]
-public sealed class WalletModule : InteractionModuleBase<ShardedInteractionContext>
+internal sealed class WalletModule : InteractionModuleBase<ShardedInteractionContext>
 {
     private readonly DiscordOptions _discordOptions;
     private readonly BlockchainOptions _blockchainOptions;
@@ -242,14 +242,14 @@ public sealed class WalletModule : InteractionModuleBase<ShardedInteractionConte
         var transferRequest = new CommandRpcTransferSplit.Request
         {
             AccountIndex = walletInfo.AccountIndex,
-            Destinations = new[]
-            {
+            Destinations =
+            [
                 new CommandRpcTransferSplit.TransferDestination
                 {
                     Address = walletInfo.RegisteredWalletAddress,
                     Amount = atomicAmountToWithdraw
                 }
-            },
+            ],
             Priority = 1,
             GetTransactionHex = true
         };
@@ -311,21 +311,7 @@ public sealed class WalletModule : InteractionModuleBase<ShardedInteractionConte
             return;
         }
 
-        var balanceResponse = await _walletRpcClient.GetBalanceAsync(new CommandRpcGetBalance.Request { AccountIndex = walletInfo.AccountIndex }).ConfigureAwait(false);
-        if (balanceResponse == null) throw new Exception();
-
-        if (atomicAmountToTip * Convert.ToUInt64(users.Length) > balanceResponse.UnlockedBalance)
-        {
-            await FollowupAsync(embed: new EmbedBuilder()
-                .WithColor(Color.Red)
-                .WithTitle("Error")
-                .WithDescription("Insufficient balance to tip this amount.")
-                .Build()).ConfigureAwait(false);
-
-            return;
-        }
-
-        var usersToTip = new List<IUser>();
+        var usersToTip = new List<IUser?>();
         var transferDestinations = new List<CommandRpcTransferSplit.TransferDestination>();
         var userTipped = new List<IUser>();
         
@@ -342,8 +328,7 @@ public sealed class WalletModule : InteractionModuleBase<ShardedInteractionConte
                     usersToTip.Add(await Context.Channel.GetUserAsync(userId).ConfigureAwait(false));
                 }
             }
-
-            if (ulong.TryParse(userText, NumberStyles.None, CultureInfo.InvariantCulture, out var id))
+            else if (ulong.TryParse(userText, NumberStyles.None, CultureInfo.InvariantCulture, out var id))
             {
                 if (Context.Guild != null)
                 {
@@ -358,7 +343,7 @@ public sealed class WalletModule : InteractionModuleBase<ShardedInteractionConte
         
         foreach (var user in usersToTip)
         {
-            if (user.Id == Context.User.Id || userTipped.Contains(user)) continue;
+            if (user == null || user.Id == Context.User.Id || userTipped.Contains(user)) continue;
 
             var userWalletInfo = await GetOrCreateWalletAccountAsync(user.Id, _dbContextFactory, _walletRpcClient).ConfigureAwait(false);
 
@@ -377,6 +362,20 @@ public sealed class WalletModule : InteractionModuleBase<ShardedInteractionConte
                 .WithColor(Color.Red)
                 .WithTitle("Transfer Result")
                 .WithDescription("Failed to tip this amount due to no users to tip.")
+                .Build()).ConfigureAwait(false);
+
+            return;
+        }
+        
+        var balanceResponse = await _walletRpcClient.GetBalanceAsync(new CommandRpcGetBalance.Request { AccountIndex = walletInfo.AccountIndex }).ConfigureAwait(false);
+        if (balanceResponse == null) throw new Exception();
+
+        if (atomicAmountToTip * Convert.ToUInt64(userTipped.Count) > balanceResponse.UnlockedBalance)
+        {
+            await FollowupAsync(embed: new EmbedBuilder()
+                .WithColor(Color.Red)
+                .WithTitle("Error")
+                .WithDescription("Insufficient balance to tip this amount.")
                 .Build()).ConfigureAwait(false);
 
             return;

@@ -10,7 +10,7 @@ using TheDialgaTeam.Worktips.Explorer.Shared;
 
 namespace TheDialgaTeam.Worktips.Explorer.Server.Discord.Modules;
 
-public sealed class DaemonModule : InteractionModuleBase<ShardedInteractionContext>
+internal sealed class DaemonModule : InteractionModuleBase<ShardedInteractionContext>
 {
     private readonly BlockchainOptions _blockchainOptions;
     private readonly IDbContextFactory<SqliteDatabaseContext> _dbContextFactory;

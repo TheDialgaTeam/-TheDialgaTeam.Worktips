@@ -1,4 +1,5 @@
-﻿using Discord;
+﻿using System.Diagnostics.CodeAnalysis;
+using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
 using Microsoft.Extensions.Options;
@@ -8,24 +9,15 @@ using IResult = Discord.Interactions.IResult;
 
 namespace TheDialgaTeam.Worktips.Explorer.Server.Services;
 
-public sealed class DiscordHostedService : IHostedService
+internal sealed class DiscordHostedService(
+    IServiceProvider serviceProvider,
+    IOptions<DiscordOptions> options, 
+    DiscordSocketClient discordSocketClient, 
+    InteractionService interactionService) : IHostedService
 {
-    private readonly IServiceProvider _serviceProvider;
-    private readonly ILogger<DiscordHostedService> _logger;
-    private readonly DiscordOptions _discordOptions;
-    private readonly DiscordShardedClient _discordShardedClient;
-    private readonly InteractionService _interactionService;
-    
-    public DiscordHostedService(IServiceProvider serviceProvider, ILogger<DiscordHostedService> logger, IOptions<DiscordOptions> options, DiscordShardedClient discordShardedClient, InteractionService interactionService)
-    {
-        _serviceProvider = serviceProvider;
-        _logger = logger;
-        _discordOptions = options.Value;
-        _discordShardedClient = discordShardedClient;
-        _interactionService = interactionService;
-    }
+    private readonly DiscordOptions _discordOptions = options.Value;
 
-    private async Task InteractionServiceOnInteractionExecuted(ICommandInfo command, IInteractionContext context, IResult result)
+    private static async Task InteractionServiceOnInteractionExecuted(ICommandInfo command, IInteractionContext context, IResult result)
     {
         if (result.IsSuccess) return;
         
@@ -44,56 +36,61 @@ public sealed class DiscordHostedService : IHostedService
         }
     }
 
+    [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(BaseModule))]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(DaemonModule))]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(ExchangeModule))]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(WalletModule))]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(FaucetModule))]
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         if (string.IsNullOrEmpty(_discordOptions.BotToken)) return;
 
-        await _discordShardedClient.LoginAsync(TokenType.Bot, _discordOptions.BotToken).ConfigureAwait(false);
-        await _discordShardedClient.StartAsync().ConfigureAwait(false);
+        await discordSocketClient.LoginAsync(TokenType.Bot, _discordOptions.BotToken).ConfigureAwait(false);
+        await discordSocketClient.StartAsync().ConfigureAwait(false);
         
-        _discordShardedClient.ShardReady += DiscordShardedClientOnShardReady;
-        _discordShardedClient.InteractionCreated += DiscordShardedClientOnInteractionCreated;
-        _interactionService.InteractionExecuted += InteractionServiceOnInteractionExecuted;
+        //discordSocketClient.Ready += DiscordShardedClientOnShardReady;
+        discordSocketClient.InteractionCreated += DiscordShardedClientOnInteractionCreated;
+        interactionService.InteractionExecuted += InteractionServiceOnInteractionExecuted;
         
-        await _interactionService.AddModuleAsync<BaseModule>(_serviceProvider).ConfigureAwait(false);
-        await _interactionService.AddModuleAsync<DaemonModule>(_serviceProvider).ConfigureAwait(false);
-        await _interactionService.AddModuleAsync<ExchangeModule>(_serviceProvider).ConfigureAwait(false);
-        await _interactionService.AddModuleAsync<WalletModule>(_serviceProvider).ConfigureAwait(false);
-        await _interactionService.AddModuleAsync<FaucetModule>(_serviceProvider).ConfigureAwait(false);
+        await interactionService.AddModuleAsync<BaseModule>(serviceProvider).ConfigureAwait(false);
+        await interactionService.AddModuleAsync<DaemonModule>(serviceProvider).ConfigureAwait(false);
+        await interactionService.AddModuleAsync<ExchangeModule>(serviceProvider).ConfigureAwait(false);
+        await interactionService.AddModuleAsync<WalletModule>(serviceProvider).ConfigureAwait(false);
+        await interactionService.AddModuleAsync<FaucetModule>(serviceProvider).ConfigureAwait(false);
     }
 
     public async Task StopAsync(CancellationToken cancellationToken)
     {
         if (string.IsNullOrEmpty(_discordOptions.BotToken)) return;
 
-        await _discordShardedClient.StopAsync().ConfigureAwait(false);
-        await _discordShardedClient.LogoutAsync().ConfigureAwait(false);
+        await discordSocketClient.StopAsync().ConfigureAwait(false);
+        await discordSocketClient.LogoutAsync().ConfigureAwait(false);
 
-        _discordShardedClient.ShardReady -= DiscordShardedClientOnShardReady;
-        _discordShardedClient.InteractionCreated -= DiscordShardedClientOnInteractionCreated;
-        _interactionService.InteractionExecuted -= InteractionServiceOnInteractionExecuted;
+        //discordSocketClient.Ready -= DiscordShardedClientOnShardReady;
+        discordSocketClient.InteractionCreated -= DiscordShardedClientOnInteractionCreated;
+        interactionService.InteractionExecuted -= InteractionServiceOnInteractionExecuted;
     }
 
-    private async Task DiscordShardedClientOnShardReady(DiscordSocketClient discordSocketClient)
+    private async Task DiscordShardedClientOnShardReady()
     {
 #if DEBUG
         foreach (var guild in discordSocketClient.Guilds)
         {
-            await _interactionService.RegisterCommandsToGuildAsync(guild.Id).ConfigureAwait(false);
+            await interactionService.RegisterCommandsToGuildAsync(guild.Id).ConfigureAwait(false);
         }
 #else
         foreach (var guild in discordSocketClient.Guilds)
         {
-            await _interactionService.RemoveModulesFromGuildAsync(guild.Id, _interactionService.Modules.ToArray()).ConfigureAwait(false);
+            await interactionService.RemoveModulesFromGuildAsync(guild.Id, interactionService.Modules.ToArray()).ConfigureAwait(false);
         }
 
-        await _interactionService.RegisterCommandsGloballyAsync().ConfigureAwait(false);
+        await interactionService.RegisterCommandsGloballyAsync().ConfigureAwait(false);
 #endif
     }
 
     private async Task DiscordShardedClientOnInteractionCreated(SocketInteraction interaction)
     {
-        var context = new ShardedInteractionContext(_discordShardedClient, interaction);
-        await _interactionService.ExecuteCommandAsync(context, _serviceProvider).ConfigureAwait(false);
+        var context = new InteractionContext(discordSocketClient, interaction);
+        await interactionService.ExecuteCommandAsync(context, serviceProvider).ConfigureAwait(false);
     }
 }

@@ -1,12 +1,8 @@
-﻿using JetBrains.Annotations;
+﻿namespace TheDialgaTeam.Worktips.Explorer.Server.Options.Discord.Faucet;
 
-namespace TheDialgaTeam.Worktips.Explorer.Server.Options.Discord.Faucet;
-
-public sealed class FaucetAmount
+internal sealed class FaucetAmount
 {
-    [UsedImplicitly(ImplicitUseKindFlags.Assign)]
-    public ulong Amount { get; init; }
-
-    [UsedImplicitly(ImplicitUseKindFlags.Assign)]
-    public int Weight { get; init; }
+    public ulong Amount { get; set; }
+    
+    public int Weight { get; set; }
 }

@@ -5,31 +5,23 @@ using TheDialgaTeam.Worktips.Explorer.Server.Database;
 
 namespace TheDialgaTeam.Worktips.Explorer.Server.Services;
 
-public sealed class DaemonHostedService : BackgroundService
+internal sealed class DaemonHostedService(
+    ILogger<DaemonHostedService> logger, 
+    IDbContextFactory<SqliteDatabaseContext> contextFactory, 
+    DaemonRpcClient daemonRpcClient) : BackgroundService
 {
-    private readonly ILogger<DaemonHostedService> _logger;
-    private readonly IDbContextFactory<SqliteDatabaseContext> _contextFactory;
-    private readonly DaemonRpcClient _daemonRpcClient;
-
-    public DaemonHostedService(ILogger<DaemonHostedService> logger, IDbContextFactory<SqliteDatabaseContext> contextFactory, DaemonRpcClient daemonRpcClient)
-    {
-        _logger = logger;
-        _contextFactory = contextFactory;
-        _daemonRpcClient = daemonRpcClient;
-    }
-
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync(stoppingToken).ConfigureAwait(false);
+        await using var context = await contextFactory.CreateDbContextAsync(stoppingToken).ConfigureAwait(false);
         await context.Database.MigrateAsync(stoppingToken).ConfigureAwait(false);
 
         var daemonSyncHistory = await context.DaemonSyncHistory.SingleAsync(stoppingToken).ConfigureAwait(false);
-
+        
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
-                var maxHeightResponse = await _daemonRpcClient.GetHeightAsync(stoppingToken).ConfigureAwait(false);
+                var maxHeightResponse = await daemonRpcClient.GetHeightAsync(stoppingToken).ConfigureAwait(false);
                 if (maxHeightResponse == null) continue;
 
                 var maxHeight = maxHeightResponse.Height - 1;
@@ -43,7 +35,7 @@ public sealed class DaemonHostedService : BackgroundService
                 do
                 {
                     // Batch query
-                    var blockResponse = await _daemonRpcClient.GetBlockHeadersRangeAsync(new CommandRpcGetBlockHeadersRange.Request { StartHeight = daemonSyncHistory.BlockCount + 1, EndHeight = daemonSyncHistory.BlockCount + 1000 <= maxHeight ? daemonSyncHistory.BlockCount + 1000 : maxHeight, FillPowHash = false }, stoppingToken).ConfigureAwait(false);
+                    var blockResponse = await daemonRpcClient.GetBlockHeadersRangeAsync(new CommandRpcGetBlockHeadersRange.Request { StartHeight = daemonSyncHistory.BlockCount + 1, EndHeight = daemonSyncHistory.BlockCount + 1000 <= maxHeight ? daemonSyncHistory.BlockCount + 1000 : maxHeight, FillPowHash = false }, stoppingToken).ConfigureAwait(false);
                     if (blockResponse == null) break;
 
                     foreach (var blockResponseHeader in blockResponse.Headers)
@@ -54,7 +46,7 @@ public sealed class DaemonHostedService : BackgroundService
 
                     await context.SaveChangesAsync(stoppingToken).ConfigureAwait(false);
 
-                    Logger.PrintDaemonSynchronizeStatus(_logger, daemonSyncHistory.BlockCount, maxHeight);
+                    Logger.PrintDaemonSynchronizeStatus(logger, daemonSyncHistory.BlockCount, maxHeight);
                 } while (daemonSyncHistory.BlockCount != maxHeight);
             }
             catch (HttpRequestException)
