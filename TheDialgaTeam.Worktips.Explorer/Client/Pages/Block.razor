@@ -6,62 +6,60 @@
 
 <PageTitle>Worktips Block Explorer - Block Details</PageTitle>
 
-<Heading Size="HeadingSize.Is3" TextColor="TextColor.Body">Block Details</Heading>
-
 <Row Gutter="(16, 32)">
     <Column ColumnSize="ColumnSize.Is12.OnDesktop">
         <Card Background="Background.Primary">
-            <CardHeader TextColor="TextColor.Dark" TextWeight="TextWeight.Bold">@_blockInfoResponse.Hash</CardHeader>
+            <CardHeader TextColor="TextColor.Dark" TextWeight="TextWeight.Bold"><Icon Name="Blazorise.Icons.FontAwesome.FontAwesomeIcons.DiceD6" /> Block: @_blockInfoResponse.Hash</CardHeader>
             <CardBody>
                 <Table Narrow="true" Responsive="true" Margin="Margin.Is0">
                     <TableBody>
                         <TableRow>
-                            <TableRowHeader>Height</TableRowHeader>
-                            <TableRowCell>@_blockInfoResponse.Height.ToString("N0")</TableRowCell>
-                            <TableRowHeader>Size</TableRowHeader>
-                            <TableRowCell>@_blockInfoResponse.Size.ToString("N0") bytes</TableRowCell>
+                            <TableRowHeader Background="Background.Primary">Height</TableRowHeader>
+                            <TableRowCell Background="Background.Primary">@_blockInfoResponse.Height.ToString("N0")</TableRowCell>
+                            <TableRowHeader Background="Background.Primary">Size</TableRowHeader>
+                            <TableRowCell Background="Background.Primary">@_blockInfoResponse.Size.ToString("N0") bytes</TableRowCell>
                         </TableRow>
 
                         <TableRow>
-                            <TableRowHeader>Confirmations</TableRowHeader>
-                            <TableRowCell>@_blockInfoResponse.Confirmation.ToString("N0")</TableRowCell>
-                            <TableRowHeader>Miner Reward</TableRowHeader>
-                            <TableRowCell>@DaemonUtility.FormatAtomicUnit(_blockInfoResponse.MinerReward, _coinInfoResponse.Unit) @_coinInfoResponse.Ticker</TableRowCell>
+                            <TableRowHeader Background="Background.Primary">Confirmations</TableRowHeader>
+                            <TableRowCell Background="Background.Primary">@_blockInfoResponse.Confirmation.ToString("N0")</TableRowCell>
+                            <TableRowHeader Background="Background.Primary">Miner Reward</TableRowHeader>
+                            <TableRowCell Background="Background.Primary">@DaemonUtility.FormatAtomicUnit(_blockInfoResponse.MinerReward, _coinInfoResponse.Unit) @_coinInfoResponse.Ticker</TableRowCell>
                         </TableRow>
 
                         <TableRow>
-                            <TableRowHeader>Date & Time</TableRowHeader>
-                            <TableRowCell>@DateTimeOffset.FromUnixTimeSeconds(Convert.ToInt64(_blockInfoResponse.Timestamp)).LocalDateTime</TableRowCell>
-                            <TableRowHeader>Reward</TableRowHeader>
-                            <TableRowCell>@DaemonUtility.FormatAtomicUnit(_blockInfoResponse.Reward, _coinInfoResponse.Unit) @_coinInfoResponse.Ticker</TableRowCell>
+                            <TableRowHeader Background="Background.Primary">Date & Time</TableRowHeader>
+                            <TableRowCell Background="Background.Primary">@DateTimeOffset.FromUnixTimeSeconds(Convert.ToInt64(_blockInfoResponse.Timestamp)).LocalDateTime</TableRowCell>
+                            <TableRowHeader Background="Background.Primary">Reward</TableRowHeader>
+                            <TableRowCell Background="Background.Primary">@DaemonUtility.FormatAtomicUnit(_blockInfoResponse.Reward, _coinInfoResponse.Unit) @_coinInfoResponse.Ticker</TableRowCell>
                         </TableRow>
 
                         <TableRow>
-                            <TableRowHeader>Version</TableRowHeader>
-                            <TableRowCell>@_blockInfoResponse.Version</TableRowCell>
-                            <TableRowHeader>Transactions Size</TableRowHeader>
-                            <TableRowCell>@_blockInfoResponse.TxSize.ToString("N0") bytes</TableRowCell>
+                            <TableRowHeader Background="Background.Primary">Version</TableRowHeader>
+                            <TableRowCell Background="Background.Primary">@_blockInfoResponse.Version</TableRowCell>
+                            <TableRowHeader Background="Background.Primary">Transactions Size</TableRowHeader>
+                            <TableRowCell Background="Background.Primary">@_blockInfoResponse.TxSize.ToString("N0") bytes</TableRowCell>
                         </TableRow>
 
                         <TableRow>
-                            <TableRowHeader>Difficulty</TableRowHeader>
-                            <TableRowCell>@_blockInfoResponse.Difficulty.ToString("N0")</TableRowCell>
-                            <TableRowHeader>Transaction Fees</TableRowHeader>
-                            <TableRowCell>@DaemonUtility.FormatAtomicUnit(_blockInfoResponse.TxFee, _coinInfoResponse.Unit) @_coinInfoResponse.Ticker</TableRowCell>
+                            <TableRowHeader Background="Background.Primary">Difficulty</TableRowHeader>
+                            <TableRowCell Background="Background.Primary">@_blockInfoResponse.Difficulty.ToString("N0")</TableRowCell>
+                            <TableRowHeader Background="Background.Primary">Transaction Fees</TableRowHeader>
+                            <TableRowCell Background="Background.Primary">@DaemonUtility.FormatAtomicUnit(_blockInfoResponse.TxFee, _coinInfoResponse.Unit) @_coinInfoResponse.Ticker</TableRowCell>
                         </TableRow>
 
                         <TableRow>
-                            <TableRowHeader>Nonce</TableRowHeader>
-                            <TableRowCell>@_blockInfoResponse.Nonce.ToString("N0")</TableRowCell>
-                            <TableRowHeader>Prev. Block</TableRowHeader>
-                            <TableRowCell>
+                            <TableRowHeader Background="Background.Primary">Nonce</TableRowHeader>
+                            <TableRowCell Background="Background.Primary">@_blockInfoResponse.Nonce.ToString("N0")</TableRowCell>
+                            <TableRowHeader Background="Background.Primary">Prev. Block</TableRowHeader>
+                            <TableRowCell Background="Background.Primary">
                                 <Anchor To="@($"block/{_blockInfoResponse.PreviousBlockHash}")" TextColor="TextColor.Primary">@_blockInfoResponse.PreviousBlockHash</Anchor>
                             </TableRowCell>
                         </TableRow>
 
                         <TableRow>
-                            <TableRowHeader>Service Node Winner</TableRowHeader>
-                            <TableRowCell ColumnSpan="3">@_blockInfoResponse.ServiceNodeWinner</TableRowCell>
+                            <TableRowHeader Background="Background.Primary">Service Node Winner</TableRowHeader>
+                            <TableRowCell ColumnSpan="3" Background="Background.Primary">@_blockInfoResponse.ServiceNodeWinner</TableRowCell>
                         </TableRow>
                     </TableBody>
                 </Table>
@@ -73,22 +71,22 @@
 <Row Gutter="(16, 32)">
     <Column ColumnSize="ColumnSize.Is12.OnDesktop">
         <Card Background="Background.Primary">
-            <CardHeader TextColor="TextColor.Dark" TextWeight="TextWeight.Bold">Transaction <Badge Color="Color.Success">@_blockInfoResponse.TransactionInfo.Count</Badge></CardHeader>
+            <CardHeader TextColor="TextColor.Dark" TextWeight="TextWeight.Bold"><Icon Name="Blazorise.Icons.FontAwesome.FontAwesomeIcons.ExchangeAlt" /> Transaction <Badge Color="Color.Success">@_blockInfoResponse.TransactionInfo.Count</Badge></CardHeader>
             <CardBody>
                 <Table Narrow="true" Responsive="true">
                     <TableHeader>
                         <TableRow>
-                            <TableRowHeader>HASH</TableRowHeader>
-                            <TableRowHeader>FEE</TableRowHeader>
-                            <TableRowHeader>TOTAL AMOUNT</TableRowHeader>
-                            <TableRowHeader>SIZE</TableRowHeader>
+                            <TableRowHeader Background="Background.Primary">HASH</TableRowHeader>
+                            <TableRowHeader Background="Background.Primary">FEE</TableRowHeader>
+                            <TableRowHeader Background="Background.Primary">TOTAL AMOUNT</TableRowHeader>
+                            <TableRowHeader Background="Background.Primary">SIZE</TableRowHeader>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         @if (!_blockInfoResponse.Success || _blockInfoResponse.TransactionInfo.Count == 0)
                         {
                             <TableRow>
-                                <TableRowCell ColumnSpan="4">There are no transactions in this block.</TableRowCell>
+                                <TableRowCell ColumnSpan="4" Background="Background.Primary">There are no transactions in this block.</TableRowCell>
                             </TableRow>
                         }
                         else
@@ -96,10 +94,10 @@
                             @foreach (var transaction in _blockInfoResponse.TransactionInfo)
                             {
                                 <TableRow>
-                                    <TableRowCell>@transaction.Hash</TableRowCell>
-                                    <TableRowCell>@DaemonUtility.FormatAtomicUnit(transaction.Fee, _coinInfoResponse.Unit)</TableRowCell>
-                                    <TableRowCell>@DaemonUtility.FormatAtomicUnit(transaction.TotalAmount, _coinInfoResponse.Unit)</TableRowCell>
-                                    <TableRowCell>@transaction.Size.ToString("N0")</TableRowCell>
+                                    <TableRowCell Background="Background.Primary">@transaction.Hash</TableRowCell>
+                                    <TableRowCell Background="Background.Primary">@DaemonUtility.FormatAtomicUnit(transaction.Fee, _coinInfoResponse.Unit)</TableRowCell>
+                                    <TableRowCell Background="Background.Primary">@DaemonUtility.FormatAtomicUnit(transaction.TotalAmount, _coinInfoResponse.Unit)</TableRowCell>
+                                    <TableRowCell Background="Background.Primary">@transaction.Size.ToString("N0")</TableRowCell>
                                 </TableRow>
                             }
                         }

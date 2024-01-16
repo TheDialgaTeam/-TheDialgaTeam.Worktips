@@ -1,47 +1,68 @@
 ﻿@inherits LayoutComponentBase
+@inject NavigationManager NavigationManager
 
 <Layout>
-	<LayoutHeader>
-		<Container>
-			<Bar Breakpoint="Breakpoint.Desktop" CollapseMode="BarCollapseMode.Hide" Background="Background.Primary">
-				<BarBrand>
-					<Figure Size="FigureSize.Is32x32" Margin="Margin.Is3.FromStart.Is0.FromBottom">
-						<FigureImage Source="images/worktips-logo.png" AlternateText="Worktips Logo" />
-					</Figure>
-				</BarBrand>
-				<BarToggler Margin="Margin.Is3.FromEnd"/>
-				<BarMenu>
-					<BarStart Margin="Margin.Is3.FromStart">
-						<BarItem>
-							<BarLink To="https://worktipscoin.com/"><Icon Name="@("fas fa-home")"/> Home Page</BarLink>
-						</BarItem>
-						<BarItem>
-							<BarLink To="/"><Icon Name="@("fas fa-dice-d6")"/> Block Explorer</BarLink>
-						</BarItem>
-						<BarItem>
-							<BarLink To="/nodes"><Icon Name="@("fas fa-server")"/> Nodes</BarLink>
-						</BarItem>
-						<BarItem>
-							<BarLink To="/pools"><Icon Name="@("far fa-check-square")"/> Pools</BarLink>
-						</BarItem>
-						<BarItem>
-							<BarLink To="https://discord.gg/akcHw9F5K3"><Icon Name="@("fab fa-discord")"/> Discord</BarLink>
-						</BarItem>
-					</BarStart>
-				</BarMenu>
-			</Bar>
-		</Container>
-	</LayoutHeader>
-	<LayoutContent Padding="Padding.Is3.FromTop.Is3.FromBottom">
-		<Container>
-			@Body
-		</Container>
-	</LayoutContent>
-	<LayoutFooter>
-		<Container>
-			<Paragraph TextColor="TextColor.Body">Copyright © 2023 Yong Jian Ming</Paragraph>
-			<Paragraph TextColor="TextColor.Body">This site is still in development. Expect some bugs and issues while browsing. Support the developer by giving a small tip :)</Paragraph>
-			<Paragraph TextColor="TextColor.Body">Donate WTIP: WtmaL4cVq7fVzT1VAtYpNUShZcRvjn1PubPVeKMMT7BM7hSFNA5aCSo6hiaGdzvB7GZfntpE4i5xZfAcQCdYhg3L9ynyQtgQEx</Paragraph>
-		</Container>
-	</LayoutFooter>
+    <LayoutHeader>
+        <Container>
+            <Bar Breakpoint="Breakpoint.Desktop" CollapseMode="BarCollapseMode.Hide" Background="Background.Primary">
+                <BarBrand>
+                    <Figure Size="FigureSize.Is32x32" Margin="Margin.Is3.FromStart.Is0.FromBottom">
+                        <FigureImage Source="images/worktips-logo.png" AlternateText="Worktips Logo"/>
+                    </Figure>
+                </BarBrand>
+                <BarToggler Margin="Margin.Is3.FromEnd"/>
+                <BarMenu Margin="Margin.Is3.FromStart.Is3.FromEnd">
+                    <BarStart Width="Width.Is100">
+                        <BarItem>
+                            <BarLink To="https://worktipscoin.com/"><Icon Name="Blazorise.Icons.FontAwesome.FontAwesomeIcons.Home"/> Home Page</BarLink>
+                        </BarItem>
+                        <BarItem>
+                            <BarLink To="/"><Icon Name="Blazorise.Icons.FontAwesome.FontAwesomeIcons.DiceD6"/> Block Explorer</BarLink>
+                        </BarItem>
+                        <BarItem>
+                            <BarLink To="/nodes"><Icon Name="Blazorise.Icons.FontAwesome.FontAwesomeIcons.Server"/> Nodes</BarLink>
+                        </BarItem>
+                        <BarItem>
+                            <BarLink To="/pools"><Icon Name="Blazorise.Icons.FontAwesome.FontAwesomeIcons.CheckSquare"/> Pools</BarLink>
+                        </BarItem>
+                        <BarItem>
+                            <BarLink To="https://discord.gg/akcHw9F5K3"><Icon Name="@("fab fa-discord")"/> Discord</BarLink>
+                        </BarItem>
+                        <TextEdit @bind-Text="@_searchInput" KeyDown="SearchBarOnKeyDown" Placeholder="Search by Block Height / Hash" Width="Width.Auto" Flex="Flex.Grow.Is1"/>
+                        <Button Color="Color.Dark" Clicked="SearchButtonOnClicked">Search</Button>
+                    </BarStart>
+                </BarMenu>
+            </Bar>
+        </Container>
+    </LayoutHeader>
+    <LayoutContent Padding="Padding.Is3.FromTop.Is3.FromBottom">
+        <Container>
+            @Body
+        </Container>
+    </LayoutContent>
+    <LayoutFooter>
+        <Container>
+            <Paragraph TextColor="TextColor.Body">Copyright © 2024 Yong Jian Ming</Paragraph>
+            <Paragraph TextColor="TextColor.Body">This site is still in development. Expect some bugs and issues while browsing. Support the developer by giving a small tip :)</Paragraph>
+            <Paragraph TextColor="TextColor.Body">Donate WTIP: WtmaL4cVq7fVzT1VAtYpNUShZcRvjn1PubPVeKMMT7BM7hSFNA5aCSo6hiaGdzvB7GZfntpE4i5xZfAcQCdYhg3L9ynyQtgQEx</Paragraph>
+        </Container>
+    </LayoutFooter>
 </Layout>
+
+@code {
+    private string _searchInput = string.Empty;
+
+    private void SearchBarOnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Code is "Enter" or "NumpadEnter")
+        {
+            
+            NavigationManager.NavigateTo($"/block/{Uri.EscapeDataString(_searchInput)}");
+        }
+    }
+
+    private void SearchButtonOnClicked(MouseEventArgs e)
+    {
+        NavigationManager.NavigateTo($"/block/{Uri.EscapeDataString(_searchInput)}");
+    }
+}

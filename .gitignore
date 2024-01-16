@@ -365,4 +365,6 @@ MigrationBackup/
 FodyWeavers.xsd
 
 # End of https://www.toptal.com/developers/gitignore/api/csharp
+
 /TheDialgaTeam.Worktips.Explorer/Server/appsettings.Development.json
+/TheDialgaTeam.Worktips.Explorer/Server/data.db*

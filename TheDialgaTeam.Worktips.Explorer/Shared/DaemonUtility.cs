@@ -2,7 +2,7 @@
 
 public static class DaemonUtility
 {
-    private static readonly string[] Units = { "H/s", "KH/s", "MH/s", "GH/s", "TH/s", "PH/s" };
+    private static readonly string[] Units = ["H/s", "KH/s", "MH/s", "GH/s", "TH/s", "PH/s"];
 
     public static string FormatHashrate(double hashrate, int decimalPlaces = 2)
     {
