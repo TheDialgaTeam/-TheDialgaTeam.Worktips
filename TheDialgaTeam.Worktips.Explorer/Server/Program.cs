@@ -9,6 +9,7 @@ using TheDialgaTeam.Serilog.Extensions;
 using TheDialgaTeam.Serilog.Formatting;
 using TheDialgaTeam.Serilog.Sinks.AnsiConsole;
 using TheDialgaTeam.Worktips.Explorer.Server.Database;
+using TheDialgaTeam.Worktips.Explorer.Server.Database.Repositories;
 using TheDialgaTeam.Worktips.Explorer.Server.Grpc;
 using TheDialgaTeam.Worktips.Explorer.Server.Options;
 using TheDialgaTeam.Worktips.Explorer.Server.Services;
@@ -49,6 +50,9 @@ internal static class Program
         builder.Services.AddSingleton(static service => new InteractionService(service.GetRequiredService<DiscordSocketClient>()));
 
         builder.Services.AddSingleton(static _ => new HttpClient { DefaultRequestHeaders = { UserAgent = { new ProductInfoHeaderValue(ApplicationUtility.Name, ApplicationUtility.Version) } } });
+
+        builder.Services.AddSingleton<FaucetHistoryRepository>();
+        builder.Services.AddSingleton<WalletAccountRepository>();
 
         builder.Services.AddHostedService<DaemonHostedService>();
         builder.Services.AddHostedService<WalletHostedService>();

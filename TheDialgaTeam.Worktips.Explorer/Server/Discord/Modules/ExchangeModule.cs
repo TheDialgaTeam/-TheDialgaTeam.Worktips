@@ -8,7 +8,7 @@ namespace TheDialgaTeam.Worktips.Explorer.Server.Discord.Modules;
 
 internal sealed class ExchangeModule(
     IOptions<BlockchainOptions> options,
-    HttpClient httpClient) : InteractionModuleBase<ShardedInteractionContext>
+    HttpClient httpClient) : InteractionModuleBase<InteractionContext>
 {
     private readonly BlockchainOptions _blockchainOptions = options.Value;
     

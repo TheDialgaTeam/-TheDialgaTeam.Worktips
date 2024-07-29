@@ -1,77 +1,44 @@
 ﻿using System.Security.Cryptography;
 using Discord;
 using Discord.Interactions;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using TheDialgaTeam.Cryptonote.Rpc.Worktips;
 using TheDialgaTeam.Cryptonote.Rpc.Worktips.Json.Wallet;
-using TheDialgaTeam.Worktips.Explorer.Server.Database;
-using TheDialgaTeam.Worktips.Explorer.Server.Database.Tables;
+using TheDialgaTeam.Worktips.Explorer.Server.Database.Repositories;
 using TheDialgaTeam.Worktips.Explorer.Server.Options;
-using TheDialgaTeam.Worktips.Explorer.Shared;
+using TheDialgaTeam.Worktips.Explorer.Shared.Utilities;
 
 namespace TheDialgaTeam.Worktips.Explorer.Server.Discord.Modules;
 
-internal sealed class FaucetModule : InteractionModuleBase<ShardedInteractionContext>
+internal sealed class FaucetModule(
+    IOptions<DiscordOptions> discordOptions,
+    IOptions<BlockchainOptions> blockchainOptions,
+    WalletAccountRepository walletAccountRepository,
+    FaucetHistoryRepository faucetHistoryRepository,
+    WalletRpcClient walletRpcClient) :
+    InteractionModuleBase<InteractionContext>
 {
-    private readonly DiscordOptions _discordOptions;
-    private readonly BlockchainOptions _blockchainOptions;
-    private readonly IDbContextFactory<SqliteDatabaseContext> _dbContextFactory;
-    private readonly WalletRpcClient _walletRpcClient;
-    
-    public FaucetModule(IOptions<DiscordOptions> discordOptions, IOptions<BlockchainOptions> blockchainOptions, IDbContextFactory<SqliteDatabaseContext> dbContextFactory, WalletRpcClient walletRpcClient)
-    {
-        _discordOptions = discordOptions.Value;
-        _blockchainOptions = blockchainOptions.Value;
-        _dbContextFactory = dbContextFactory;
-        _walletRpcClient = walletRpcClient;
-    }
-    
-    private static async Task<WalletAccount> GetOrCreateWalletAccountAsync(ulong userId, IDbContextFactory<SqliteDatabaseContext> dbContextFactory, WalletRpcClient walletRpcClient)
-    {
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync().ConfigureAwait(false);
-
-        var result = await dbContext.WalletAccounts.SingleOrDefaultAsync(account => account.UserId == userId).ConfigureAwait(false);
-        if (result != null) return result;
-
-        var newWallet = await walletRpcClient.CreateAccountAsync(new CommandRpcCreateAccount.Request { Label = userId.ToString() }).ConfigureAwait(false);
-        if (newWallet == null) throw new Exception();
-
-        var walletAccount = new WalletAccount
-        {
-            UserId = userId,
-            RegisteredWalletAddress = null,
-            AccountIndex = newWallet.AccountIndex,
-            TipBotWalletAddress = newWallet.Address
-        };
-
-        dbContext.WalletAccounts.Add(walletAccount);
-        await dbContext.SaveChangesAsync().ConfigureAwait(false);
-
-        return walletAccount;
-    }
+    private readonly DiscordOptions _discordOptions = discordOptions.Value;
+    private readonly BlockchainOptions _blockchainOptions = blockchainOptions.Value;
 
     [SlashCommand("faucet", "Get a small tip from the faucet.", true)]
     public async Task FaucetCommand()
     {
         await DeferAsync().ConfigureAwait(false);
-        
-        await using var dbContext = await _dbContextFactory.CreateDbContextAsync().ConfigureAwait(false);
-        var faucetHistory = await dbContext.FaucetHistories.SingleOrDefaultAsync(history => history.UserId == Context.User.Id).ConfigureAwait(false);
 
-        if (faucetHistory != null && DateTimeOffset.Now - faucetHistory.DateTime < TimeSpan.FromHours(1))
+        if (!faucetHistoryRepository.IsFaucetClaimable(Context.User.Id, out var duration))
         {
             await FollowupAsync(embed: new EmbedBuilder()
                 .WithColor(Color.Red)
                 .WithTitle("Error")
-                .WithDescription($"You have to wait for {(faucetHistory.DateTime.AddHours(1) - DateTimeOffset.Now).TotalMinutes:N0} minutes before you can receive tips again.")
+                .WithDescription($"You have to wait for {duration.TotalMinutes:N0} minutes before you can receive tips again.")
                 .Build()).ConfigureAwait(false);
-            
+
             return;
         }
 
-        var botWalletAccount = await GetOrCreateWalletAccountAsync(Context.Client.CurrentUser.Id, _dbContextFactory, _walletRpcClient).ConfigureAwait(false);
-        var botBalanceResponse = await _walletRpcClient.GetBalanceAsync(new CommandRpcGetBalance.Request { AccountIndex = botWalletAccount.AccountIndex }).ConfigureAwait(false);
+        var botWalletAccount = await walletAccountRepository.GetOrCreateWalletAccountAsync(Context.Client.CurrentUser.Id).ConfigureAwait(false);
+        var botBalanceResponse = await walletRpcClient.GetBalanceAsync(new CommandRpcGetBalance.Request { AccountIndex = botWalletAccount.AccountIndex }).ConfigureAwait(false);
         if (botBalanceResponse == null) throw new Exception();
 
         if (botBalanceResponse.Balance <= _discordOptions.Modules.Faucet.Amounts.Max(amount => amount.Amount))
@@ -81,7 +48,7 @@ internal sealed class FaucetModule : InteractionModuleBase<ShardedInteractionCon
                 .WithTitle("Error")
                 .WithDescription($"The faucet requires a minimum of {DaemonUtility.FormatAtomicUnit(_discordOptions.Modules.Faucet.Amounts.Max(amount => amount.Amount), _blockchainOptions.CoinUnit)} {_blockchainOptions.CoinTicker} in the bot balance. Please consider donating to keep this faucet running :)")
                 .Build()).ConfigureAwait(false);
-            
+
             return;
         }
 
@@ -107,16 +74,16 @@ internal sealed class FaucetModule : InteractionModuleBase<ShardedInteractionCon
                 .WithTitle("Error")
                 .WithDescription("The faucet balance is pending and unable to spend. Please try again later.")
                 .Build()).ConfigureAwait(false);
-            
+
             return;
         }
 
-        var userWalletAccount = await GetOrCreateWalletAccountAsync(Context.User.Id, _dbContextFactory, _walletRpcClient).ConfigureAwait(false);
+        var userWalletAccount = await walletAccountRepository.GetOrCreateWalletAccountAsync(Context.User.Id).ConfigureAwait(false);
         var transferDestinations = new List<CommandRpcTransferSplit.TransferDestination>
         {
             new()
             {
-                Address = userWalletAccount.TipBotWalletAddress,
+                Address = userWalletAccount.SentToRegisteredWalletDirectly ? userWalletAccount.RegisteredWalletAddress ?? userWalletAccount.TipBotWalletAddress : userWalletAccount.TipBotWalletAddress,
                 Amount = atomicAmountToTip
             }
         };
@@ -129,7 +96,7 @@ internal sealed class FaucetModule : InteractionModuleBase<ShardedInteractionCon
             GetTransactionHex = true
         };
 
-        var transferResult = await _walletRpcClient.TransferSplitAsync(transferRequest).ConfigureAwait(false);
+        var transferResult = await walletRpcClient.TransferSplitAsync(transferRequest).ConfigureAwait(false);
 
         if (transferResult == null || transferResult.AmountList.Length == 0)
         {
@@ -138,20 +105,11 @@ internal sealed class FaucetModule : InteractionModuleBase<ShardedInteractionCon
                 .WithTitle("Error")
                 .WithDescription("The transaction failed to process. This can be due to not enough unspent output or unable to cover the transaction fee.")
                 .Build()).ConfigureAwait(false);
-            
+
             return;
         }
 
-        if (faucetHistory == null)
-        {
-            dbContext.FaucetHistories.Add(new FaucetHistory { UserId = Context.User.Id, DateTime = DateTimeOffset.Now });
-        }
-        else
-        {
-            faucetHistory.DateTime = DateTimeOffset.Now;
-        }
-        
-        await dbContext.SaveChangesAsync().ConfigureAwait(false);
+        await faucetHistoryRepository.SetFaucetClaimedAsync(Context.User.Id).ConfigureAwait(false);
 
         await FollowupAsync(embed: new EmbedBuilder()
             .WithColor(Color.Orange)

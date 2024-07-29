@@ -6,9 +6,10 @@ internal sealed class WalletHostedService(ILogger<WalletHostedService> logger, W
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        while (!stoppingToken.IsCancellationRequested)
+        using var periodicTimer = new PeriodicTimer(TimeSpan.FromMinutes(30));
+        
+        while (await periodicTimer.WaitForNextTickAsync(stoppingToken))
         {
-            await Task.Delay(TimeSpan.FromMinutes(30), stoppingToken).ConfigureAwait(false);
             await walletRpcClient.StoreAsync(stoppingToken).ConfigureAwait(false);
             Logger.PrintWalletSaved(logger);
         }

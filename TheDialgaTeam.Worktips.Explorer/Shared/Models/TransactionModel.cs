@@ -3,9 +3,7 @@
 namespace TheDialgaTeam.Worktips.Explorer.Shared.Models;
 
 [JsonSerializable(typeof(TransactionModel), GenerationMode = JsonSourceGenerationMode.Metadata)]
-public partial class TransactionModelContext : JsonSerializerContext
-{
-}
+public partial class TransactionModelContext : JsonSerializerContext;
 
 public sealed class TransactionModel
 {

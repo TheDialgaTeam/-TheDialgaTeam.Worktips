@@ -6,11 +6,11 @@ using TheDialgaTeam.Cryptonote.Rpc.Worktips;
 using TheDialgaTeam.Cryptonote.Rpc.Worktips.Json.Daemon;
 using TheDialgaTeam.Worktips.Explorer.Server.Database;
 using TheDialgaTeam.Worktips.Explorer.Server.Options;
-using TheDialgaTeam.Worktips.Explorer.Shared;
+using TheDialgaTeam.Worktips.Explorer.Shared.Utilities;
 
 namespace TheDialgaTeam.Worktips.Explorer.Server.Discord.Modules;
 
-internal sealed class DaemonModule : InteractionModuleBase<ShardedInteractionContext>
+internal sealed class DaemonModule : InteractionModuleBase<InteractionContext>
 {
     private readonly BlockchainOptions _blockchainOptions;
     private readonly IDbContextFactory<SqliteDatabaseContext> _dbContextFactory;
@@ -42,7 +42,7 @@ internal sealed class DaemonModule : InteractionModuleBase<ShardedInteractionCon
             .WithTitle("Blockchain Information")
             .AddField("Height", $"{infoResponse.Height:N0}")
             .AddField("Difficulty", $"{infoResponse.Difficulty:N0}")
-            .AddField("Network Hash Rate", $"{DaemonUtility.FormatHashrate(Convert.ToDouble(infoResponse.Difficulty) / Convert.ToDouble(infoResponse.Target))}")
+            .AddField("Network Hash Rate", $"{DaemonUtility.FormatHashRate(Convert.ToDouble(infoResponse.Difficulty) / Convert.ToDouble(infoResponse.Target))}")
             .AddField("Block Reward", $"{DaemonUtility.FormatAtomicUnit(blockResponse.BlockHeader.Reward, _blockchainOptions.CoinUnit)} {_blockchainOptions.CoinTicker}")
             .AddField("Miner Reward", $"{DaemonUtility.FormatAtomicUnit(blockResponse.BlockHeader.MinerReward, _blockchainOptions.CoinUnit)} {_blockchainOptions.CoinTicker}", true)
             .AddField("Service Node Reward", $"{DaemonUtility.FormatAtomicUnit(blockResponse.BlockHeader.Reward - blockResponse.BlockHeader.MinerReward, _blockchainOptions.CoinUnit)} {_blockchainOptions.CoinTicker}", true)

@@ -35,7 +35,7 @@ internal sealed class DaemonHostedService(
                 do
                 {
                     // Batch query
-                    var blockResponse = await daemonRpcClient.GetBlockHeadersRangeAsync(new CommandRpcGetBlockHeadersRange.Request { StartHeight = daemonSyncHistory.BlockCount + 1, EndHeight = daemonSyncHistory.BlockCount + 1000 <= maxHeight ? daemonSyncHistory.BlockCount + 1000 : maxHeight, FillPowHash = false }, stoppingToken).ConfigureAwait(false);
+                    var blockResponse = await daemonRpcClient.GetBlockHeadersRangeAsync(new CommandRpcGetBlockHeadersRange.Request { StartHeight = daemonSyncHistory.BlockCount + 1, EndHeight = Math.Min(daemonSyncHistory.BlockCount + 1000, maxHeight), FillPowHash = false }, stoppingToken).ConfigureAwait(false);
                     if (blockResponse == null) break;
 
                     foreach (var blockResponseHeader in blockResponse.Headers)
@@ -43,11 +43,11 @@ internal sealed class DaemonHostedService(
                         daemonSyncHistory.BlockCount = blockResponseHeader.Height;
                         daemonSyncHistory.TotalCirculation += blockResponseHeader.Reward;
                     }
-
+                    
                     await context.SaveChangesAsync(stoppingToken).ConfigureAwait(false);
-
+                    
                     Logger.PrintDaemonSynchronizeStatus(logger, daemonSyncHistory.BlockCount, maxHeight);
-                } while (daemonSyncHistory.BlockCount != maxHeight);
+                } while (!stoppingToken.IsCancellationRequested && daemonSyncHistory.BlockCount != maxHeight);
             }
             catch (HttpRequestException)
             {

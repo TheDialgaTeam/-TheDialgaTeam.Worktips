@@ -11,19 +11,19 @@ using TheDialgaTeam.Worktips.Explorer.Shared.Models;
 namespace TheDialgaTeam.Worktips.Explorer.Server.Grpc;
 
 internal sealed class DaemonService(
-    IOptions<BlockchainOptions> blockchainOptions,
+    IOptionsMonitor<BlockchainOptions> blockchainOptions,
     IDbContextFactory<SqliteDatabaseContext> dbContextFactory,
     DaemonRpcClient daemonRpcClient) : Daemon.DaemonBase
 {
-    private readonly BlockchainOptions _blockchainOptions = blockchainOptions.Value;
+    private BlockchainOptions BlockchainOptions => blockchainOptions.CurrentValue;
 
     public override Task<GetCoinInfoResponse> GetCoinInfo(NoParametersRequest request, ServerCallContext context)
     {
         return Task.FromResult(new GetCoinInfoResponse
         {
             Success = true,
-            Ticker = _blockchainOptions.CoinTicker,
-            Unit = _blockchainOptions.CoinUnit
+            Ticker = BlockchainOptions.CoinTicker,
+            Unit = BlockchainOptions.CoinUnit
         });
     }
 
@@ -53,8 +53,8 @@ internal sealed class DaemonService(
                 BlockReward = blockHeaderByHeightResponse.BlockHeader.Reward,
                 TotalTransactions = infoResponse.TransactionCount,
                 CirculatingSupply = daemonSyncHistory?.TotalCirculation ?? 0,
-                TotalSupply = _blockchainOptions.CoinMaxSupply,
-                CurrentEmission = (double) (daemonSyncHistory?.TotalCirculation ?? 0) / _blockchainOptions.CoinMaxSupply
+                TotalSupply = BlockchainOptions.CoinMaxSupply,
+                CurrentEmission = (double) (daemonSyncHistory?.TotalCirculation ?? 0) / BlockchainOptions.CoinMaxSupply
             };
         }
         catch (Exception)

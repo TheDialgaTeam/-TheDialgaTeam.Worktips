@@ -1,10 +1,10 @@
 ﻿@page "/"
 
+@using TheDialgaTeam.Worktips.Explorer.Shared.Utilities
 @implements IDisposable
 
 @inject Daemon.DaemonClient DaemonClient
 @inject IJSRuntime JsRuntime
-@inject IPageProgressService PageProgressService
 
 <PageTitle>Worktips Block Explorer</PageTitle>
 
@@ -38,7 +38,7 @@
                                 <Icon Name="Blazorise.Icons.FontAwesome.FontAwesomeIcons.TachometerAlt"/>
                             </TableRowHeader>
                             <TableRowHeader Background="Background.Primary" TextColor="TextColor.Dark">Network Hash Rate</TableRowHeader>
-                            <TableRowCell Background="Background.Primary" TextColor="TextColor.Dark">@DaemonUtility.FormatHashrate(_currentDaemonStatistics.NetworkHashRate)</TableRowCell>
+                            <TableRowCell Background="Background.Primary" TextColor="TextColor.Dark">@DaemonUtility.FormatHashRate(_currentDaemonStatistics.NetworkHashRate)</TableRowCell>
                         </TableRow>
 
                         <TableRow>
@@ -123,10 +123,10 @@
                         }
                         else
                         {
-                            @foreach (var transaction in _transactionPoolResponse.Transactions)
+                            @foreach (var transaction in _transactionPoolResponse.Transactions.OrderBy(transaction => transaction.Age))
                             {
                                 <TableRow>
-                                    <TableRowCell Background="Background.Primary" TextColor="TextColor.Dark">@TimeSpan.FromSeconds(transaction.Age).ToString("d\\:hh\\:mm\\:ss")</TableRowCell>
+                                    <TableRowCell Background="Background.Primary" TextColor="TextColor.Dark">@TimeSpan.FromSeconds(transaction.Age).ToString(@"d\:hh\:mm\:ss")</TableRowCell>
                                     <TableRowCell Background="Background.Primary" TextColor="TextColor.Dark">@DaemonUtility.FormatAtomicUnit(transaction.Fee, _coinInfoResponse.Unit)</TableRowCell>
                                     <TableRowCell Background="Background.Primary" TextColor="TextColor.Dark">@transaction.Size.ToString("N0")</TableRowCell>
                                     <TableRowCell Background="Background.Primary" TextColor="TextColor.Dark">@transaction.Hash</TableRowCell>
@@ -199,19 +199,21 @@
 
     protected override void OnInitialized()
     {
-        _globalTimer = new Timer(async _ =>
+        _globalTimer = new Timer(o =>
         {
-            await PageProgressService.Go(null, options => options.Color = Color.Success);
+            _ = Task.Run(async () =>
+            {
+                _coinInfoResponse = await DaemonClient.GetCoinInfoAsync(new NoParametersRequest());
+                await InvokeAsync(StateHasChanged);
+            });
 
-            _coinInfoResponse = await DaemonClient.GetCoinInfoAsync(new NoParametersRequest());
-
-            var task = Task.Run(async () =>
+            _ = Task.Run(async () =>
             {
                 _currentDaemonStatistics = await DaemonClient.GetCurrentDaemonInfoAsync(new NoParametersRequest());
                 await InvokeAsync(StateHasChanged);
             });
 
-            var task2 = Task.Run(async () =>
+            _ = Task.Run(async () =>
             {
                 var response = await DaemonClient.GetChartDataAsync(new NoParametersRequest());
                 var script = new List<string>();
@@ -224,20 +226,17 @@
                 await JsRuntime.InvokeVoidAsync("window.updateBlockchainChart", $"[{string.Join(",", script)}]");
             });
 
-            var task3 = Task.Run(async () =>
+            _ = Task.Run(async () =>
             {
                 _transactionPoolResponse = await DaemonClient.GetTransactionPoolAsync(new NoParametersRequest());
                 await InvokeAsync(StateHasChanged);
             });
 
-            var task4 = Task.Run(async () =>
+            _ = Task.Run(async () =>
             {
                 _recentBlocksResponse = await DaemonClient.GetRecentBlocksAsync(new NoParametersRequest());
                 await InvokeAsync(StateHasChanged);
             });
-
-            await Task.WhenAll(task, task2, task3, task4);
-            await PageProgressService.Go(-1);
         }, null, TimeSpan.FromSeconds(0), TimeSpan.FromSeconds(10));
     }
 

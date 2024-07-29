@@ -36,7 +36,6 @@ internal sealed class DiscordHostedService(
         }
     }
 
-    [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(BaseModule))]
     [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(DaemonModule))]
     [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(ExchangeModule))]
     [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(WalletModule))]
@@ -51,8 +50,7 @@ internal sealed class DiscordHostedService(
         //discordSocketClient.Ready += DiscordShardedClientOnShardReady;
         discordSocketClient.InteractionCreated += DiscordShardedClientOnInteractionCreated;
         interactionService.InteractionExecuted += InteractionServiceOnInteractionExecuted;
-        
-        await interactionService.AddModuleAsync<BaseModule>(serviceProvider).ConfigureAwait(false);
+
         await interactionService.AddModuleAsync<DaemonModule>(serviceProvider).ConfigureAwait(false);
         await interactionService.AddModuleAsync<ExchangeModule>(serviceProvider).ConfigureAwait(false);
         await interactionService.AddModuleAsync<WalletModule>(serviceProvider).ConfigureAwait(false);
